@@ -1,13 +1,45 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { useScroll, useMotionValueEvent, motion } from "framer-motion";
 
 export function Navbar() {
+    const [hidden, setHidden] = useState(false);
+    const { scrollY } = useScroll();
+
+    useMotionValueEvent(scrollY, "change", (latest: number) => {
+        const previous = scrollY.getPrevious() ?? 0;
+
+        // Always show at the very top of the page
+        if (latest < 50) {
+            setHidden(false);
+            return;
+        }
+
+        // Only hide/show if scrolling with some velocity to prevent trackpad micro-bouncing
+        // > 0 is scrolling down, < 0 is scrolling up
+        const diff = latest - previous;
+
+        if (diff > 5) {
+            setHidden(true); // significantly scrolled down
+        } else if (diff < -5) {
+            setHidden(false); // significantly scrolled up
+        }
+    });
+
     return (
-        <div className="fixed top-6 left-0 right-0 z-[100] px-4 pointer-events-none">
+        <motion.div
+            variants={{
+                visible: { y: 0 },
+                hidden: { y: "-120%" },
+            }}
+            animate={hidden ? "hidden" : "visible"}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+            className="fixed top-6 left-0 right-0 z-[100] px-4 pointer-events-none"
+        >
             <nav className="max-w-[1000px] mx-auto h-16 nav-glass-pill rounded-full px-6 flex items-center justify-between pointer-events-auto bg-[var(--bg-card-hover)]/30 backdrop-blur-md">
                 <div className="flex items-center">
                     <Link
@@ -62,6 +94,6 @@ export function Navbar() {
                     </Link>
                 </div>
             </nav>
-        </div>
+        </motion.div>
     );
 }

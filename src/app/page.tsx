@@ -20,7 +20,7 @@ export default function LandingPage() {
   const opacity = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
 
   return (
-    <main className="min-h-screen bg-[var(--bg-main)] relative overflow-hidden">
+    <main className="min-h-screen bg-[var(--bg-main)] relative overflow-x-hidden">
       {/* Navigation */}
       {/* Navigation */}
       <Navbar />
