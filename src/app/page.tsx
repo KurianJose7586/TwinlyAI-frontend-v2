@@ -8,6 +8,7 @@ import { ArrowRight, Bot, Check, Play, User } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Footer } from "@/components/layout/footer";
 import { Navbar } from "@/components/layout/navbar";
+import { DotPatternLogo } from "@/components/ui/dot-pattern-logo";
 
 export default function LandingPage() {
   const targetRef = useRef<HTMLDivElement>(null);
@@ -293,25 +294,8 @@ export default function LandingPage() {
               viewport={{ once: true }}
               transition={{ duration: 0.8 }}
             >
-              <div className="bg-[var(--bg-card)] rounded-[32px] p-12 shadow-2xl shadow-indigo-500/10 border border-[var(--border-color)] aspect-square flex items-center justify-center relative overflow-hidden group">
-                <div className="absolute inset-0 opacity-[0.03] pointer-events-none overflow-hidden transition-transform duration-1000 group-hover:scale-110">
-                  <div className="grid grid-cols-10 gap-4 w-full h-full rotate-12">
-                    {[...Array(40)].map((_, i) => (
-                      <div
-                        key={i}
-                        className="bg-indigo-600 h-full w-full rounded-full"
-                      ></div>
-                    ))}
-                  </div>
-                </div>
-                <div className="relative flex flex-col items-center">
-                  <div className="w-32 h-32 bg-indigo-600 rounded-[40px] flex items-center justify-center shadow-xl shadow-indigo-500/40 mb-8 transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3">
-                    <Bot className="w-16 h-16 text-white" />
-                  </div>
-                  <span className="text-[14px] font-bold text-[var(--text-muted)] uppercase tracking-[0.3em]">
-                    Knowledge Neural Engine
-                  </span>
-                </div>
+              <div className="w-full aspect-square opacity-100">
+                <DotPatternLogo />
               </div>
             </motion.div>
           </div>
