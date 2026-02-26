@@ -1,29 +1,80 @@
 "use client";
 
-import { motion, useScroll, useTransform } from "framer-motion";
+import { motion, useScroll, useTransform, useSpring, useMotionValue } from "framer-motion";
 import { useRef } from "react";
-import Link from "next/link";
-import Image from "next/image"; // Added Image import
-import { ArrowRight, Bot, Check, Play, User } from "lucide-react";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { Footer } from "@/components/layout/footer";
+import { Check, User } from "lucide-react";
 import { Navbar } from "@/components/layout/navbar";
+import { Footer } from "@/components/layout/footer";
 import { DotPatternLogo } from "@/components/ui/dot-pattern-logo";
+
+// --- Helper Component: Subtle Typing Effect ---
+const AnimatedTypingText = ({ text }: { text: string }) => {
+  const words = text.split(" ");
+
+  return (
+    <motion.span
+      variants={{
+        hidden: { opacity: 0 },
+        visible: {
+          opacity: 1,
+          transition: {
+            staggerChildren: 0.03, // Speed of typing (lower is faster)
+            delayChildren: 0.2     // Waits for the bubble to finish entering before typing
+          }
+        }
+      }}
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true }}
+    >
+      {words.map((word, i) => (
+        <motion.span
+          key={i}
+          className="inline-block mr-1"
+          variants={{
+            hidden: { opacity: 0, filter: "blur(2px)", y: 2 },
+            visible: { opacity: 1, filter: "blur(0px)", y: 0 }
+          }}
+        >
+          {word}
+        </motion.span>
+      ))}
+    </motion.span>
+  );
+};
 
 export default function LandingPage() {
   const targetRef = useRef<HTMLDivElement>(null);
+
+  // 1. Smooth Parallax Scroll
   const { scrollYProgress } = useScroll({
     target: targetRef,
     offset: ["start start", "end start"],
   });
+  const smoothY = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 });
+  const y = useTransform(smoothY, [0, 1], ["0%", "40%"]);
 
-  const y = useTransform(scrollYProgress, [0, 1], ["0%", "50%"]);
-  const opacity = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
+  // 2. 3D Hover Tilt Logic
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+  const rotateX = useTransform(mouseY, [-0.5, 0.5], ["3deg", "-3deg"]);
+  const rotateY = useTransform(mouseX, [-0.5, 0.5], ["-3deg", "3deg"]);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width - 0.5;
+    const y = (e.clientY - rect.top) / rect.height - 0.5;
+    mouseX.set(x);
+    mouseY.set(y);
+  };
+
+  const handleMouseLeave = () => {
+    mouseX.set(0);
+    mouseY.set(0);
+  };
 
   return (
     <main className="min-h-screen bg-[var(--bg-main)] relative overflow-x-hidden">
-      {/* Navigation */}
-      {/* Navigation */}
       <Navbar />
 
       {/* Hero Section */}
@@ -43,9 +94,7 @@ export default function LandingPage() {
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.2 }}
               >
-                <span className="bg-indigo-600 text-white px-2 py-0.5 rounded-full text-[10px] mr-1">
-                  New
-                </span>
+                <span className="bg-indigo-600 text-white px-2 py-0.5 rounded-full text-[10px] mr-1">New</span>
                 Enterprise v2.0 Now Live
               </motion.div>
               <motion.h1
@@ -65,8 +114,7 @@ export default function LandingPage() {
                 transition={{ delay: 0.5, duration: 0.8 }}
               >
                 Transform static PDFs into interactive AI agents that recruiters
-                can interview 24/7. Your high-fidelity professional digital
-                twin.
+                can interview 24/7. Your high-fidelity professional digital twin.
               </motion.p>
               <motion.div
                 className="flex flex-col sm:flex-row items-center justify-center gap-6"
@@ -84,21 +132,39 @@ export default function LandingPage() {
             </div>
           </motion.div>
 
-          {/* Floating UI Window (Parallax Effect) */}
+          {/* Interactive UI Window */}
           <motion.div
             className="relative mx-auto max-w-[960px] w-full -mt-32 z-20 px-4"
-            style={{ y }}
+            style={{ y }} // Kept only the smooth parallax scrolling here
             initial={{ opacity: 0, y: 100 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.9, duration: 1 }}
+            transition={{ delay: 0.9, duration: 1, type: "spring", stiffness: 50 }}
           >
-            <div className="ui-window overflow-hidden text-left bg-[var(--ui-window-bg)] ring-1 ring-[var(--border-color)]">
+            <motion.div
+              className="ui-window overflow-hidden text-left bg-[var(--ui-window-bg)] ring-1 ring-[var(--border-color)] shadow-2xl bg-white/5 backdrop-blur-sm"
+
+              // --- NEW: The "Pop Up" Hover Effect ---
+              whileHover={{
+                y: -16, // Lifts the window up by 16px
+                scale: 1.01, // Slight expansion to feel closer
+                boxShadow: "0 40px 80px -20px rgba(99, 102, 241, 0.3)" // Deep glowing shadow
+              }}
+              transition={{
+                type: "spring",
+                stiffness: 300,
+                damping: 20
+              }}
+            // -------------------------------------
+
+            >
+              {/* Header */}
               <div className="chat-header px-6 py-4 flex items-center justify-between border-b border-[var(--border-color)] bg-[var(--nav-glass)]">
+                {/* ... Keep all your existing Chat Header code here ... */}
                 <div className="flex items-center gap-4">
                   <div className="flex gap-2">
-                    <div className="w-3 h-3 rounded-full bg-red-500/50"></div>
-                    <div className="w-3 h-3 rounded-full bg-yellow-500/50"></div>
-                    <div className="w-3 h-3 rounded-full bg-green-500/50"></div>
+                    <div className="w-3 h-3 rounded-full bg-red-500/50 hover:bg-red-500 transition-colors cursor-pointer"></div>
+                    <div className="w-3 h-3 rounded-full bg-yellow-500/50 hover:bg-yellow-500 transition-colors cursor-pointer"></div>
+                    <div className="w-3 h-3 rounded-full bg-green-500/50 hover:bg-green-500 transition-colors cursor-pointer"></div>
                   </div>
                   <div className="h-4 w-px bg-[var(--border-color)] mx-1"></div>
                   <div className="flex items-center gap-2">
@@ -108,85 +174,94 @@ export default function LandingPage() {
                     </span>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 bg-indigo-500/10 px-3 py-1.5 rounded-full border border-indigo-500/20">
                   <span className="flex h-2 w-2 rounded-full bg-indigo-500 animate-pulse"></span>
-                  <span className="text-[11px] font-bold text-indigo-600 uppercase tracking-widest">
+                  <span className="text-[11px] font-bold text-indigo-500 uppercase tracking-widest">
                     Digital Twin Active
                   </span>
                 </div>
               </div>
 
-              {/* Chat Content */}
-              <div className="p-8 md:p-14 space-y-12">
-                <div className="flex gap-6 max-w-[85%]">
+              {/* Chat Content - Staggered Storytelling */}
+              <motion.div
+                className="p-8 md:p-14 space-y-12"
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, margin: "-100px" }}
+                variants={{
+                  visible: { transition: { staggerChildren: 1.2 } }
+                }}
+              >
+
+                {/* 1. Hiring Manager Message */}
+                <motion.div
+                  className="flex gap-6 max-w-[85%]"
+                  variants={{
+                    hidden: { opacity: 0, x: -20, scale: 0.95 },
+                    visible: { opacity: 1, x: 0, scale: 1, transition: { type: "spring", stiffness: 100 } }
+                  }}
+                >
                   <div className="w-12 h-12 rounded-full bg-[var(--bg-card)] flex items-center justify-center shrink-0 border border-[var(--border-color)] shadow-sm">
                     <User className="text-[var(--text-muted)] w-6 h-6" />
                   </div>
                   <div className="space-y-2">
                     <div className="bg-[var(--bg-card)] border border-[var(--border-color)] text-[16px] p-6 rounded-[24px] rounded-tl-none leading-relaxed text-[var(--text-main)] shadow-sm">
-                      "I see you've led several cloud migrations. Could you
-                      explain how you managed data consistency across hybrid
-                      environments during the switch?"
+                      <AnimatedTypingText text="I see you've led several cloud migrations. Could you explain how you managed data consistency across hybrid environments during the switch?" />
                     </div>
                     <div className="flex items-center gap-2 px-1">
-                      <span className="text-[11px] text-[var(--text-muted)] font-bold uppercase tracking-wider">
-                        Hiring Manager
-                      </span>
+                      <span className="text-[11px] text-[var(--text-muted)] font-bold uppercase tracking-wider">Hiring Manager</span>
                     </div>
                   </div>
-                </div>
+                </motion.div>
 
-                <div className="flex gap-6 justify-end">
+                {/* 2. AI Twin Response */}
+                <motion.div
+                  className="flex gap-6 justify-end"
+                  variants={{
+                    hidden: { opacity: 0, x: 20, scale: 0.95 },
+                    visible: { opacity: 1, x: 0, scale: 1, transition: { type: "spring", stiffness: 100 } }
+                  }}
+                >
                   <div className="space-y-2 text-right max-w-[85%]">
-                    <div className="bg-indigo-600 text-white text-[16px] p-6 rounded-[24px] rounded-tr-none leading-relaxed shadow-xl shadow-indigo-100 text-left">
-                      "For those migrations, I leveraged a change-data-capture
-                      (CDC) pattern with Kafka. This allowed us to keep the
-                      legacy and cloud databases in sync within milliseconds,
-                      ensuring that users saw consistent data regardless of the
-                      cluster."
+                    <div className="bg-indigo-600 text-white text-[16px] p-6 rounded-[24px] rounded-tr-none leading-relaxed shadow-xl shadow-indigo-500/20 text-left relative group overflow-hidden">
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-[100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
+                      <AnimatedTypingText text="For those migrations, I leveraged a change-data-capture (CDC) pattern with Kafka. This allowed us to keep the legacy and cloud databases in sync within milliseconds, ensuring that users saw consistent data regardless of the cluster." />
                     </div>
                     <div className="flex items-center justify-end gap-2 px-1">
-                      <span className="text-[11px] text-indigo-600 font-bold uppercase tracking-wider flex items-center gap-1.5">
-                        <Check className="w-4 h-4 text-indigo-600" />
-                        Sarah's AI Twin
+                      <span className="text-[11px] text-indigo-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                        <Check className="w-3 h-3 text-indigo-400" /> Sarah's AI Twin
                       </span>
-                      <span className="w-1 h-1 bg-indigo-200 rounded-full"></span>
-                      <span className="text-[11px] text-slate-400 italic">
-                        Technical voice match 98%
-                      </span>
+                      <span className="w-1 h-1 bg-indigo-500/30 rounded-full"></span>
+                      <span className="text-[11px] text-slate-400 italic">Technical voice match 98%</span>
                     </div>
                   </div>
                   <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 border-2 border-indigo-500/30 ring-4 ring-indigo-500/10">
-                    <img
-                      alt="Professional Profile"
-                      className="w-full h-full object-cover"
-                      src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&auto=format&fit=crop&w=256&q=80"
-                    />
+                    <img alt="Professional Profile" className="w-full h-full object-cover" src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&auto=format&fit=crop&w=256&q=80" />
                   </div>
-                </div>
+                </motion.div>
 
-                <div className="pt-8 border-t border-[var(--border-color)] flex items-center justify-between">
+                {/* 3. Typing Indicator */}
+                <motion.div
+                  className="pt-8 border-t border-[var(--border-color)] flex items-center justify-between"
+                  variants={{
+                    hidden: { opacity: 0, y: 10 },
+                    visible: { opacity: 1, y: 0 }
+                  }}
+                >
                   <div className="flex items-center gap-4">
-                    <div className="flex gap-1">
-                      <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full opacity-40 animate-bounce"></div>
-                      <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full opacity-60 animate-bounce delay-75"></div>
+                    <div className="flex gap-1 bg-[var(--bg-card)] px-3 py-2 rounded-full border border-[var(--border-color)]">
+                      <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce"></div>
+                      <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce delay-75"></div>
                       <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce delay-150"></div>
                     </div>
-                    <span className="text-[13px] text-[var(--text-muted)] italic">
-                      Hiring manager is typing...
-                    </span>
+                    <span className="text-[13px] text-[var(--text-muted)] italic">Hiring manager is typing...</span>
                   </div>
                   <div className="flex gap-4">
-                    <button className="text-[12px] font-bold text-indigo-500 hover:text-indigo-400">
-                      View Full Transcript
-                    </button>
-                    <button className="text-[12px] font-bold text-[var(--text-muted)] hover:text-[var(--text-main)]">
-                      Export PDF
-                    </button>
+                    <button className="text-[12px] font-bold text-indigo-500 hover:text-indigo-400 transition-colors">View Full Transcript</button>
                   </div>
-                </div>
-              </div>
-            </div>
+                </motion.div>
+              </motion.div>
+            </motion.div>
           </motion.div>
         </div>
       </section>
@@ -207,21 +282,9 @@ export default function LandingPage() {
           </motion.div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
             {[
-              {
-                value: "12x",
-                label: "Interview Rate",
-                desc: "Higher placement rate for candidates using active AI twins compared to traditional PDFs.",
-              },
-              {
-                value: "24/7",
-                label: "Availability",
-                desc: "Your professional expertise stays engaged across every timezone while you focus on what matters.",
-              },
-              {
-                value: "100%",
-                label: "Data Sovereignty",
-                desc: "Full encryption and ownership. You control exactly what your twin knows and who it speaks to.",
-              },
+              { value: "12x", label: "Interview Rate", desc: "Higher placement rate for candidates using active AI twins compared to traditional PDFs." },
+              { value: "24/7", label: "Availability", desc: "Your professional expertise stays engaged across every timezone while you focus on what matters." },
+              { value: "100%", label: "Data Sovereignty", desc: "Full encryption and ownership. You control exactly what your twin knows and who it speaks to." },
             ].map((stat, i) => (
               <motion.div
                 key={i}
@@ -231,22 +294,16 @@ export default function LandingPage() {
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1, duration: 0.6 }}
               >
-                <div className="text-[64px] font-bold text-[var(--brand-purple)] mb-2 tracking-tighter">
-                  {stat.value}
-                </div>
-                <div className="text-[13px] font-bold text-[var(--text-muted)] uppercase tracking-[0.2em] mb-6">
-                  {stat.label}
-                </div>
-                <p className="text-[17px] text-[var(--text-muted)] leading-relaxed">
-                  {stat.desc}
-                </p>
+                <div className="text-[64px] font-bold text-[var(--brand-purple)] mb-2 tracking-tighter">{stat.value}</div>
+                <div className="text-[13px] font-bold text-[var(--text-muted)] uppercase tracking-[0.2em] mb-6">{stat.label}</div>
+                <p className="text-[17px] text-[var(--text-muted)] leading-relaxed">{stat.desc}</p>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Feature Section */}
+      {/* Feature Section with the Canvas Particle Component */}
       <section className="py-40 px-8 section-divider bg-[var(--bg-main)]/50 border-t border-[var(--border-color)]">
         <div className="max-w-[1200px] mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-24 items-center">
@@ -287,14 +344,15 @@ export default function LandingPage() {
                 ))}
               </ul>
             </motion.div>
+
             <motion.div
-              className="relative"
+              className="relative flex justify-center items-center"
               initial={{ opacity: 0, x: 50 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.8 }}
             >
-              <div className="w-full aspect-square opacity-100">
+              <div className="w-full max-w-[450px]">
                 <DotPatternLogo />
               </div>
             </motion.div>
