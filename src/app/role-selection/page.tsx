@@ -42,7 +42,7 @@ export default function RoleSelectionPage() {
 
                     <div className="grid md:grid-cols-2 gap-8">
                         {/* Candidate Card */}
-                        <button className="group relative flex flex-col items-start text-left p-10 rounded-3xl border border-slate-100 dark:border-white/10 bg-white dark:bg-[#1C2128] hover:bg-slate-50 dark:hover:bg-[#1C2128] transition-all duration-300 hover:shadow-xl hover:shadow-blue-100 dark:hover:shadow-purple-500/10 hover:-translate-y-1">
+                        <Link href="/onboarding?role=candidate" className="group relative block flex-col items-start text-left p-10 rounded-3xl border border-slate-100 dark:border-white/10 bg-white dark:bg-[#1C2128] hover:bg-slate-50 dark:hover:bg-[#1C2128] transition-all duration-300 hover:shadow-xl hover:shadow-blue-100 dark:hover:shadow-purple-500/10 hover:-translate-y-1">
                             <div className="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-purple-500/10 flex items-center justify-center text-blue-600 dark:text-purple-400 mb-8 dark:mb-10 border border-transparent dark:border-purple-500/20 transition-all duration-300">
                                 <Brain size={32} />
                             </div>
@@ -56,10 +56,10 @@ export default function RoleSelectionPage() {
                                 Building my Twin
                                 <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
                             </div>
-                        </button>
+                        </Link>
 
                         {/* Recruiter Card */}
-                        <button className="group relative flex flex-col items-start text-left p-10 rounded-3xl border border-slate-100 dark:border-white/10 bg-white dark:bg-[#1C2128] hover:bg-slate-50 dark:hover:bg-[#1C2128] transition-all duration-300 hover:shadow-xl hover:shadow-indigo-100 dark:hover:shadow-blue-500/10 hover:-translate-y-1">
+                        <Link href="/onboarding?role=recruiter" className="group relative block flex-col items-start text-left p-10 rounded-3xl border border-slate-100 dark:border-white/10 bg-white dark:bg-[#1C2128] hover:bg-slate-50 dark:hover:bg-[#1C2128] transition-all duration-300 hover:shadow-xl hover:shadow-indigo-100 dark:hover:shadow-blue-500/10 hover:-translate-y-1">
                             <div className="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-blue-500/10 flex items-center justify-center text-blue-600 dark:text-blue-400 mb-8 dark:mb-10 border border-transparent dark:border-blue-500/20 transition-all duration-300">
                                 <Search size={32} />
                             </div>
@@ -73,7 +73,7 @@ export default function RoleSelectionPage() {
                                 Finding Talent
                                 <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
                             </div>
-                        </button>
+                        </Link>
                     </div>
 
                     <div className="mt-14 text-center">
@@ -89,7 +89,7 @@ export default function RoleSelectionPage() {
                     </div>
                 </div>
 
-                <div className="mt-8 flex justify-center gap-6 text-[10px] uppercase tracking-[0.2em] text-slate-300 dark:text-white/20 font-medium">
+                <div className="mt-8 flex justify-center items-center gap-6 text-[10px] uppercase tracking-[0.2em] text-slate-300 dark:text-white/20 font-medium flex-wrap">
                     <Link href="#" className="hover:text-white dark:hover:text-white/40 transition-colors">
                         Privacy Policy
                     </Link>
@@ -97,6 +97,8 @@ export default function RoleSelectionPage() {
                         Terms of Service
                     </Link>
                     <span>© 2024 TwinlyAI</span>
+                    <span className="hidden sm:inline">•</span>
+                    <span>Designed in Lajpat Nagar</span>
                 </div>
             </main>
         </div>

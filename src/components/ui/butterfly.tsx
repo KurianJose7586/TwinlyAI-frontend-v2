@@ -12,7 +12,7 @@ interface ButterflyProps {
 
 export function Butterfly({ className, mode = "icon", progress = 0 }: ButterflyProps) {
     // Center roughly based on viewport 500x500
-    const center = { x: 250, y: 250 };
+
 
     return (
         <div className={className}>

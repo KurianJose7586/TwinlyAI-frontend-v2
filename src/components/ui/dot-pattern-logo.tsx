@@ -108,8 +108,8 @@ export function DotPatternLogo() {
 
                 const shimmer = Math.sin(time * 2 + p.phase) * 1.2;
 
-                let dx = tx + shimmer - p.x;
-                let dy = ty + shimmer + flap - p.y;
+                const dx = tx + shimmer - p.x;
+                const dy = ty + shimmer + flap - p.y;
 
                 // --- NEW: Magnetic Repulsion ---
                 if (cursor.current.active) {

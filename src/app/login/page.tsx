@@ -124,7 +124,7 @@ export default function LoginPage() {
                     </div>
                 </div>
 
-                <div className="mt-8 flex justify-center gap-6 text-[10px] uppercase tracking-[0.2em] text-slate-300 dark:text-white/20 font-medium">
+                <div className="mt-8 flex justify-center items-center gap-6 text-[10px] uppercase tracking-[0.2em] text-slate-300 dark:text-white/20 font-medium flex-wrap">
                     <Link href="#" className="hover:text-white dark:hover:text-white/40 transition-colors">
                         Privacy Policy
                     </Link>
@@ -132,6 +132,8 @@ export default function LoginPage() {
                         Terms of Service
                     </Link>
                     <span>© 2024 TwinlyAI</span>
+                    <span className="hidden sm:inline">•</span>
+                    <span>Designed in Lajpat Nagar</span>
                 </div>
             </main>
         </div>

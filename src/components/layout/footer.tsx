@@ -54,7 +54,11 @@ export function Footer() {
             </div>
 
             <div className="max-w-[1200px] mx-auto mt-16 pt-8 border-t border-[var(--border-color)] text-[var(--text-muted)] text-sm flex flex-col sm:flex-row justify-between items-center gap-4">
-                <p>© 2024 TwinlyAI. All rights reserved.</p>
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-6 items-center">
+                    <p>© 2024 TwinlyAI. All rights reserved.</p>
+                    <span className="text-[10px] hidden sm:block">•</span>
+                    <span className="text-[10px] uppercase tracking-[0.2em] font-medium opacity-70">Designed in Lajpat Nagar</span>
+                </div>
                 <div className="flex gap-6">
                     <Link className="hover:text-[var(--brand-purple)] transition-colors" href="#">
                         <Twitter className="w-5 h-5" />
