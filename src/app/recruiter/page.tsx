@@ -19,7 +19,24 @@ import {
     ExternalLink,
     Linkedin,
     Github,
-    Globe
+    Globe,
+    Sparkles,
+    Code2,
+    Zap,
+    Brain,
+    Target,
+    Rocket,
+    Lightbulb,
+    Coffee,
+    Terminal,
+    Cpu,
+    Network,
+    Database,
+    LogOut,
+    User,
+    Shield,
+    CheckCircle2,
+    Clock
 } from "lucide-react";
 import { Footer } from "@/components/layout/footer";
 
@@ -87,6 +104,8 @@ const MOCK_CANDIDATES = [
 const EXTENDED_CANDIDATES = Array(9).fill(MOCK_CANDIDATES).flat().map((c, i) => ({ ...c, id: `${c.id}_${i}` }));
 
 // Helper to generate deterministic but varied doodles based on candidate property
+const DOODLE_ICONS = [Sparkles, Code2, Zap, Brain, Target, Rocket, Lightbulb, Coffee, Terminal, Cpu, Database, Network];
+
 const generateDoodles = (seedString: string) => {
     let hash = 0;
     for (let i = 0; i < seedString.length; i++) {
@@ -98,32 +117,37 @@ const generateDoodles = (seedString: string) => {
         return min + (val / 233280) * (max - min);
     };
 
+    const numIcons = Math.floor(pseudoRandom(6, 12, 0));
+    const icons = [];
+
+    for (let i = 0; i < numIcons; i++) {
+        const Icon = DOODLE_ICONS[Math.floor(pseudoRandom(0, DOODLE_ICONS.length, i * 10 + 1))];
+        const size = pseudoRandom(18, 36, i * 10 + 2);
+        const top = pseudoRandom(-10, 80, i * 10 + 3);
+        const left = pseudoRandom(0, 95, i * 10 + 4);
+        const rotation = pseudoRandom(-30, 30, i * 10 + 5);
+        const opacity = pseudoRandom(0.1, 0.25, i * 10 + 6);
+
+        icons.push(
+            <Icon
+                key={i}
+                className="absolute text-white"
+                style={{
+                    top: `${top}%`,
+                    left: `${left}%`,
+                    width: size,
+                    height: size,
+                    transform: `rotate(${rotation}deg)`,
+                    opacity
+                }}
+            />
+        );
+    }
+
     return (
-        <svg className="absolute inset-0 w-full h-full opacity-30 mix-blend-overlay pointer-events-none rounded-t-3xl overflow-hidden" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-                <pattern id={`dots-${seed}`} x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse" patternTransform={`rotate(${pseudoRandom(0, 45, 1)})`}>
-                    <circle cx="2" cy="2" r="1.5" fill="white" opacity="0.5" />
-                </pattern>
-                <linearGradient id={`grad-${seed}`} x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="white" stopOpacity="0.2" />
-                    <stop offset="100%" stopColor="white" stopOpacity="0" />
-                </linearGradient>
-            </defs>
-            <rect x="0" y="0" width="100%" height="100%" fill={`url(#dots-${seed})`} />
-
-            <circle cx={`${pseudoRandom(10, 90, 2)}%`} cy={`${pseudoRandom(10, 90, 3)}%`} r={`${pseudoRandom(20, 80, 4)}`} fill={`url(#grad-${seed})`} />
-            <circle cx={`${pseudoRandom(10, 90, 5)}%`} cy={`${pseudoRandom(10, 90, 6)}%`} r={`${pseudoRandom(40, 100, 7)}`} fill="white" opacity={pseudoRandom(0.02, 0.08, 8)} />
-
-            <path d={`M-50,${pseudoRandom(0, 100, 9)} Q${pseudoRandom(100, 300, 10)},${pseudoRandom(-50, 150, 11)} ${pseudoRandom(400, 600, 12)},${pseudoRandom(0, 150, 13)} T1000,${pseudoRandom(0, 200, 14)}`}
-                stroke="white" strokeWidth={pseudoRandom(1, 4, 15)} fill="none" opacity={pseudoRandom(0.1, 0.4, 16)} />
-
-            <path d={`M${pseudoRandom(0, 200, 17)},-50 C${pseudoRandom(100, 400, 18)},${pseudoRandom(50, 200, 19)} ${pseudoRandom(300, 600, 20)},${pseudoRandom(0, 150, 21)} ${pseudoRandom(500, 800, 22)},200`}
-                stroke="white" strokeWidth={pseudoRandom(1, 4, 23)} fill="none" opacity={pseudoRandom(0.1, 0.4, 24)} strokeDasharray={`${pseudoRandom(4, 12, 25)} ${pseudoRandom(4, 12, 26)}`} />
-
-            <rect x={`${pseudoRandom(20, 80, 27)}%`} y={`${pseudoRandom(10, 70, 28)}%`} width={`${pseudoRandom(40, 120, 29)}`} height={`${pseudoRandom(40, 120, 30)}`}
-                transform={`rotate(${pseudoRandom(0, 180, 31)} ${pseudoRandom(100, 500, 32)} ${pseudoRandom(20, 80, 33)})`}
-                fill={`url(#grad-${seed})`} rx={pseudoRandom(10, 40, 34)} />
-        </svg>
+        <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none rounded-t-3xl border-t border-white/10">
+            {icons}
+        </div>
     );
 };
 
@@ -131,6 +155,12 @@ export default function RecruiterDashboard() {
     const [currentPage, setCurrentPage] = useState(1);
     const [selectedCandidate, setSelectedCandidate] = useState<typeof MOCK_CANDIDATES[0] | null>(null);
     const [mounted, setMounted] = useState(false);
+
+    // Header dropdown states
+    const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+
     const ITEMS_PER_PAGE = 12;
 
     useEffect(() => {
@@ -180,17 +210,106 @@ export default function RecruiterDashboard() {
                         <Link className="text-[14px] font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors" href="#">Campaigns</Link>
                     </nav>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 relative">
                     <div className="flex items-center bg-slate-200/50 dark:bg-[#1C2128]/50 rounded-full px-3 py-1 gap-3 border border-transparent dark:border-white/5">
-                        <button className="flex items-center justify-center text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors">
-                            <Bell size={20} />
-                        </button>
-                        <button className="flex items-center justify-center text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors">
-                            <Settings size={20} />
-                        </button>
+
+                        {/* Notifications Dropdown */}
+                        <div className="relative">
+                            <button
+                                onClick={() => { setIsNotificationsOpen(!isNotificationsOpen); setIsSettingsOpen(false); setIsProfileMenuOpen(false); }}
+                                className={`flex items-center justify-center transition-colors relative ${isNotificationsOpen ? 'text-blue-600 dark:text-purple-400' : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'}`}
+                            >
+                                <Bell size={20} />
+                                <span className="absolute top-0 right-0 w-2 h-2 rounded-full bg-red-500 border border-white dark:border-[#0B0E14]"></span>
+                            </button>
+
+                            {isNotificationsOpen && (
+                                <div className="absolute top-full right-0 mt-4 w-80 bg-white dark:bg-[#1C2128] border border-slate-200 dark:border-white/10 rounded-2xl shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                                    <div className="p-4 border-b border-slate-200 dark:border-white/10 flex justify-between items-center bg-slate-50 dark:bg-white/5">
+                                        <h3 className="font-bold text-slate-900 dark:text-white text-sm">Notifications</h3>
+                                        <button className="text-xs text-blue-600 dark:text-purple-400 font-semibold hover:underline">Mark all read</button>
+                                    </div>
+                                    <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
+                                        <div className="p-4 border-b border-slate-100 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer flex gap-3">
+                                            <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-purple-500/20 text-blue-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                                                <Target size={14} />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm text-slate-900 dark:text-white font-medium mb-1"><span className="font-bold">Alex Rivera</span> matches your Python req!</p>
+                                                <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1"><Clock size={12} /> 2h ago</p>
+                                            </div>
+                                        </div>
+                                        <div className="p-4 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer flex gap-3 opacity-60">
+                                            <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-500/20 text-green-600 dark:text-green-400 flex items-center justify-center shrink-0">
+                                                <CheckCircle2 size={14} />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm text-slate-900 dark:text-white font-medium mb-1">Interview with <span className="font-bold">Sarah Jenkins</span> complete.</p>
+                                                <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1"><Clock size={12} /> 1d ago</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Settings Dropdown */}
+                        <div className="relative">
+                            <button
+                                onClick={() => { setIsSettingsOpen(!isSettingsOpen); setIsNotificationsOpen(false); setIsProfileMenuOpen(false); }}
+                                className={`flex items-center justify-center transition-colors ${isSettingsOpen ? 'text-blue-600 dark:text-purple-400' : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'}`}
+                            >
+                                <Settings size={20} />
+                            </button>
+
+                            {isSettingsOpen && (
+                                <div className="absolute top-full right-0 mt-4 w-64 bg-white dark:bg-[#1C2128] border border-slate-200 dark:border-white/10 rounded-2xl shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200 p-2">
+                                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 px-3 pt-2">Preferences</h3>
+                                    <button className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg flex items-center gap-3 transition-colors">
+                                        <Shield size={16} className="text-slate-400" /> Account Security
+                                    </button>
+                                    <button className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg flex items-center gap-3 transition-colors">
+                                        <Bell size={16} className="text-slate-400" /> Alert Preferences
+                                    </button>
+                                    <div className="h-px bg-slate-200 dark:bg-white/10 my-2 mx-1"></div>
+                                    <button className="w-full text-left px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg flex items-center gap-3 transition-colors">
+                                        <LogOut size={16} /> Sign Out
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     </div>
-                    <div className="h-8 w-8 rounded-full overflow-hidden border border-slate-300 dark:border-white/20 bg-slate-200 dark:bg-[#1C2128]">
-                        <img src={AVATARS[0]} alt="Recruiter Avatar" className="w-full h-full object-cover" />
+
+                    {/* Profile Dropdown */}
+                    <div className="relative">
+                        <button
+                            onClick={() => { setIsProfileMenuOpen(!isProfileMenuOpen); setIsNotificationsOpen(false); setIsSettingsOpen(false); }}
+                            className={`h-8 w-8 rounded-full overflow-hidden border transition-all ${isProfileMenuOpen ? 'border-blue-500 dark:border-purple-500 ring-2 ring-blue-500/20 dark:ring-purple-500/20' : 'border-slate-300 dark:border-white/20 hover:border-slate-400 dark:hover:border-white/40'} bg-slate-200 dark:bg-[#1C2128] cursor-pointer`}
+                        >
+                            <img src={AVATARS[0]} alt="Recruiter Avatar" className="w-full h-full object-cover" />
+                        </button>
+
+                        {isProfileMenuOpen && (
+                            <div className="absolute top-full right-0 mt-4 w-60 bg-white dark:bg-[#1C2128] border border-slate-200 dark:border-white/10 rounded-2xl shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                                <div className="p-4 border-b border-slate-200 dark:border-white/10 flex items-center gap-3 bg-slate-50 dark:bg-white/5">
+                                    <div className="w-10 h-10 rounded-full overflow-hidden border border-slate-200 dark:border-white/20">
+                                        <img src={AVATARS[0]} alt="Avatar" className="w-full h-full object-cover" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-bold text-slate-900 dark:text-white">Admin User</p>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">admin@twinly.ai</p>
+                                    </div>
+                                </div>
+                                <div className="p-2">
+                                    <button className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg flex items-center gap-3 transition-colors">
+                                        <User size={16} className="text-slate-400" /> My Profile
+                                    </button>
+                                    <button className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg flex items-center gap-3 transition-colors">
+                                        <Briefcase size={16} className="text-slate-400" /> Active Roles
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </header>
