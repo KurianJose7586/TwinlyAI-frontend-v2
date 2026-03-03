@@ -11,48 +11,195 @@ import {
     Terminal,
     Key,
     Copy,
-    RefreshCw,
     Trash2,
     ArrowUp,
-    ChevronDown
+    ChevronDown,
+    Loader2,
+    LogOut,
+    Plus,
+    Check,
+    Sun,
+    Moon
 } from "lucide-react";
+import { useTheme } from "next-themes";
+import api from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
+import { ResumeUploadZone } from "@/components/ui/resume-upload-zone";
 
-const AVATARS = [
-    "https://api.dicebear.com/7.x/notionists/svg?seed=Felix&backgroundColor=e2e8f0",
-    "https://api.dicebear.com/7.x/notionists/svg?seed=Aneka&backgroundColor=fef08a",
-    "https://api.dicebear.com/7.x/notionists/svg?seed=Jasper&backgroundColor=bfdbfe",
-    "https://api.dicebear.com/7.x/notionists/svg?seed=Mia&backgroundColor=fbcfe8",
-    "https://api.dicebear.com/7.x/notionists/svg?seed=Oliver&backgroundColor=bbf7d0",
-    "https://api.dicebear.com/7.x/notionists/svg?seed=Sophia&backgroundColor=fca5a5"
-];
+type APIKey = { id: string; prefix: string };
 
 export default function CandidateActiveDashboard() {
+    const { user, logout } = useAuth();
+    const { setTheme, resolvedTheme } = useTheme();
     const [mounted, setMounted] = React.useState(false);
     const [activeTab, setActiveTab] = React.useState('dashboard');
     const [isProfileMenuOpen, setIsProfileMenuOpen] = React.useState(false);
 
-    // Extracted from onboarding flow local storage
-    const [userName, setUserName] = React.useState("Alex Rivera");
-    const [userAvatar, setUserAvatar] = React.useState(AVATARS[0]);
+    // --- Profile data ---
+    const [userName, setUserName] = React.useState("Your AI Twin");
+    const [userAvatar, setUserAvatar] = React.useState(
+        "https://api.dicebear.com/7.x/notionists/svg?seed=Felix&backgroundColor=e2e8f0"
+    );
+    const [botId, setBotId] = React.useState<string | null>(null);
+
+    // --- Dashboard form state ---
+    const [agentName, setAgentName] = React.useState("");
+    const [agentBio, setAgentBio] = React.useState("");
+    const [isSaving, setIsSaving] = React.useState(false);
+    const [saveSuccess, setSaveSuccess] = React.useState(false);
+
+    // --- API Keys state ---
+    const [apiKeys, setApiKeys] = React.useState<APIKey[]>([]);
+    const [isCreatingKey, setIsCreatingKey] = React.useState(false);
+    const [newKeyValue, setNewKeyValue] = React.useState<string | null>(null);
+    const [copiedKeyId, setCopiedKeyId] = React.useState<string | null>(null);
 
     React.useEffect(() => {
         setMounted(true);
-        // Safely extract from localStorage once mounted
-        const rawData = localStorage.getItem("onboardingData");
-        if (rawData) {
-            try {
-                const data = JSON.parse(rawData);
-                if (data.name) setUserName(data.name);
-                if (typeof data.avatarIndex === 'number' && AVATARS[data.avatarIndex]) {
-                    setUserAvatar(AVATARS[data.avatarIndex]);
+        // Load profile from localStorage (set during onboarding / login)
+        const name = localStorage.getItem("twinly_userName") ||
+            localStorage.getItem("userName") || "Your AI Twin";
+        const avatar = localStorage.getItem("userAvatar") ||
+            "https://api.dicebear.com/7.x/notionists/svg?seed=Felix&backgroundColor=e2e8f0";
+        const id = localStorage.getItem("twinly_botId");
+
+        setUserName(name);
+        setUserAvatar(avatar);
+        setBotId(id);
+        setAgentName(`${name} AI`);
+        setAgentBio(`I'm ${name.split(' ')[0]}'s AI twin. I represent their skills and career achievements. I should be articulate, helpful, and maintain professional ethics.`);
+
+        // Fetch real bots from backend if we don't have a botId yet
+        if (!id) {
+            api.get("/bots/").then(res => {
+                const bots = res.data;
+                if (bots.length > 0) {
+                    const bot = bots[0];
+                    const realId = bot.id || bot._id;
+                    localStorage.setItem("twinly_botId", realId);
+                    localStorage.setItem("twinly_userName", bot.name);
+                    setBotId(realId);
+                    setUserName(bot.name);
+                    setAgentName(`${bot.name} AI`);
+                    setAgentBio(`I'm ${bot.name.split(' ')[0]}'s AI twin.`);
                 }
-            } catch (error) {
-                console.error("Failed to parse onboarding data:", error);
-            }
+            }).catch(() => { });
         }
+
+        // Load API Keys
+        api.get("/api-keys/").then(res => setApiKeys(res.data)).catch(() => { });
     }, []);
 
-    if (!mounted) return null; // Prevent hydration errors
+    const handlePublishChanges = async () => {
+        if (!botId) return;
+        setIsSaving(true);
+        try {
+            await api.patch(`/bots/${botId}`, { name: agentName.replace(" AI", "") });
+            setSaveSuccess(true);
+            setTimeout(() => setSaveSuccess(false), 2500);
+        } catch (e) {
+            console.error("Failed to save bot:", e);
+        }
+        setIsSaving(false);
+    };
+
+    const handleCreateApiKey = async () => {
+        setIsCreatingKey(true);
+        try {
+            const res = await api.post("/api-keys/");
+            setNewKeyValue(res.data.api_key);
+            // Refresh list
+            const list = await api.get("/api-keys/");
+            setApiKeys(list.data);
+        } catch (e) {
+            console.error("Failed to create API key:", e);
+        }
+        setIsCreatingKey(false);
+    };
+
+    const handleDeleteApiKey = async (keyId: string) => {
+        try {
+            await api.delete(`/api-keys/${keyId}`);
+            setApiKeys(prev => prev.filter(k => k.id !== keyId));
+        } catch (e) {
+            console.error("Failed to delete API key:", e);
+        }
+    };
+
+    const handleCopyKey = (val: string, id: string) => {
+        navigator.clipboard.writeText(val);
+        setCopiedKeyId(id);
+        setTimeout(() => setCopiedKeyId(null), 2000);
+    };
+
+    // --- Chat state ---
+    type ChatMsg = { role: 'user' | 'assistant'; text: string };
+    const [chatMessages, setChatMessages] = React.useState<ChatMsg[]>([
+        { role: 'user', text: `Hi ${userName.split(' ')[0] || 'there'}! What makes you stand out?` },
+    ]);
+    const [chatInput, setChatInput] = React.useState("");
+    const [isStreaming, setIsStreaming] = React.useState(false);
+    const chatEndRef = React.useRef<HTMLDivElement>(null);
+
+    // Auto-scroll chat
+    React.useEffect(() => {
+        chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [chatMessages, isStreaming]);
+
+    // Strip <think> tags from LLM responses (same logic as backend strip_think_tags)
+    const strip = (text: string) => text.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+
+    const handleChatSend = async () => {
+        const msg = chatInput.trim();
+        if (!msg || isStreaming || !botId) return;
+        setChatInput("");
+        setChatMessages(prev => [...prev, { role: 'user', text: msg }]);
+        setIsStreaming(true);
+
+        try {
+            const token = localStorage.getItem("twinly_token");
+            const res = await fetch(
+                `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/v1/bots/${botId}/chat/stream`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                    },
+                    body: JSON.stringify({ message: msg }),
+                }
+            );
+            if (!res.ok || !res.body) {
+                const errText = await res.text();
+                throw new Error(`HTTP ${res.status}: ${errText}`);
+            }
+
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder();
+            let fullText = "";
+            setChatMessages(prev => [...prev, { role: 'assistant', text: "" }]);
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                // Backend streams raw text chunks (not SSE data: lines)
+                const chunk = decoder.decode(value, { stream: true });
+                fullText += chunk;
+                const finalText = strip(fullText);
+                setChatMessages(prev => {
+                    const updated = [...prev];
+                    updated[updated.length - 1] = { role: 'assistant', text: finalText };
+                    return updated;
+                });
+            }
+        } catch (err: any) {
+            console.error("Chat Error:", err);
+            setChatMessages(prev => [...prev, { role: 'assistant', text: `Failed to connect to AI Twin: ${err.message}` }]);
+        }
+        setIsStreaming(false);
+    };
+
+    if (!mounted) return null;
 
     return (
         <div className="flex h-screen overflow-hidden bg-slate-100 dark:bg-[#0B0E14] text-slate-900 dark:text-white font-sans antialiased relative">
@@ -118,17 +265,21 @@ export default function CandidateActiveDashboard() {
                         <div className="absolute bottom-full left-6 mb-2 w-52 bg-white/90 dark:bg-[#1C2128]/90 backdrop-blur-xl border border-slate-200 dark:border-white/10 shadow-lg rounded-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200 z-50">
                             <div className="p-3 border-b border-slate-100 dark:border-white/5">
                                 <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider px-2">Account</p>
+                                <p className="text-xs text-slate-400 dark:text-slate-500 px-2 mt-0.5 truncate">{user?.email}</p>
                             </div>
                             <div className="p-1">
                                 <button className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-colors">
                                     View Profile
                                 </button>
                                 <button className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-colors">
-                                    Billing & Plans
+                                    Billing &amp; Plans
                                 </button>
                                 <div className="h-px bg-slate-100 dark:bg-white/5 my-1" />
-                                <button className="w-full text-left px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-colors">
-                                    Sign Out
+                                <button
+                                    onClick={logout}
+                                    className="w-full flex items-center gap-2 text-left px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-colors"
+                                >
+                                    <LogOut size={14} /> Sign Out
                                 </button>
                             </div>
                         </div>
@@ -167,8 +318,13 @@ export default function CandidateActiveDashboard() {
                             <button className="px-5 py-2.5 rounded-full bg-white dark:bg-[#1C2128] border border-slate-200 dark:border-white/10 text-sm font-medium hover:bg-slate-50 dark:hover:bg-white/5 transition-all">
                                 Preview Page
                             </button>
-                            <button className="px-5 py-2.5 rounded-full bg-[#007AFF] text-white text-sm font-semibold hover:bg-blue-600 transition-all shadow-md shadow-blue-500/20">
-                                Publish Changes
+                            <button
+                                onClick={handlePublishChanges}
+                                disabled={isSaving}
+                                className="px-5 py-2.5 rounded-full bg-[#007AFF] text-white text-sm font-semibold hover:bg-blue-600 transition-all shadow-md shadow-blue-500/20 flex items-center gap-2 disabled:opacity-60"
+                            >
+                                {isSaving ? <Loader2 size={14} className="animate-spin" /> : saveSuccess ? <Check size={14} /> : null}
+                                {saveSuccess ? "Saved!" : "Publish Changes"}
                             </button>
                         </div>
                     )}
@@ -179,7 +335,7 @@ export default function CandidateActiveDashboard() {
 
                         {/* Tab: Dashboard */}
                         {activeTab === 'dashboard' && (
-                            <div className="grid grid-cols-12 gap-10">
+                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in fade-in duration-300 items-start">
                                 {/* Left Column: Settings */}
                                 <div className="col-span-12 lg:col-span-7 space-y-10">
                                     {/* Identity Config */}
@@ -195,7 +351,8 @@ export default function CandidateActiveDashboard() {
                                                     <input
                                                         id="agent-name"
                                                         type="text"
-                                                        defaultValue={`${userName} AI`}
+                                                        value={agentName}
+                                                        onChange={e => setAgentName(e.target.value)}
                                                         className="bg-white dark:bg-[#0B0E14] border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-2.5 text-sm transition-all duration-200 focus:ring-2 focus:ring-[#007AFF]/20 focus:border-[#007AFF] outline-none text-slate-900 dark:text-white"
                                                     />
                                                 </div>
@@ -210,18 +367,34 @@ export default function CandidateActiveDashboard() {
                                                 </div>
                                             </div>
                                             <div className="flex flex-col">
-                                                <label htmlFor="agent-bio" className="text-[13px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5 block">Personality & Context</label>
+                                                <label htmlFor="agent-bio" className="text-[13px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5 block">Personality &amp; Context</label>
                                                 <textarea
                                                     id="agent-bio"
                                                     rows={4}
+                                                    value={agentBio}
+                                                    onChange={e => setAgentBio(e.target.value)}
                                                     className="resize-none bg-white dark:bg-[#0B0E14] border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-2.5 text-sm transition-all duration-200 focus:ring-2 focus:ring-[#007AFF]/20 focus:border-[#007AFF] outline-none text-slate-900 dark:text-white"
-                                                    defaultValue={`I'm ${userName.split(' ')[0]}'s AI twin. I represent his design philosophy, technical skills, and career achievements. I should be articulate, helpful, and maintain a high standard of professional ethics while showing a bit of creative spark.`}
                                                 />
                                             </div>
                                         </div>
                                     </section>
 
-                                    {/* System Directives */}
+                                    {/* Resume Upload */}
+                                    <section className="bg-white/80 dark:bg-[#1C2128]/80 backdrop-blur-md border border-slate-200 dark:border-white/10 shadow-sm rounded-3xl p-8">
+                                        <div className="flex items-center gap-3 mb-6">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#007AFF]"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="12" y1="18" x2="12" y2="12" /><line x1="9" y1="15" x2="15" y2="15" /></svg>
+                                            <h3 className="text-lg font-semibold">Resume &amp; Knowledge Base</h3>
+                                        </div>
+                                        <ResumeUploadZone botId={botId} onSuccess={(name) => {
+                                            if (name) {
+                                                setUserName(name);
+                                                setAgentName(`${name} AI`);
+                                                localStorage.setItem("twinly_userName", name);
+                                            }
+                                        }} />
+                                    </section>
+
+
                                     <section className="bg-white/80 dark:bg-[#1C2128]/80 backdrop-blur-md border border-slate-200 dark:border-white/10 shadow-sm rounded-3xl overflow-hidden">
                                         <button className="w-full flex items-center justify-between p-8 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors group">
                                             <div className="flex items-center gap-3">
@@ -248,26 +421,54 @@ export default function CandidateActiveDashboard() {
                                             <Key className="text-[#007AFF]" size={24} />
                                             <h3 className="text-lg font-semibold">API Connectivity</h3>
                                         </div>
-                                        <div className="bg-slate-100 dark:bg-[#0B0E14] p-5 rounded-2xl border border-slate-200 dark:border-white/10 flex items-center justify-between shadow-inner space-x-4">
-                                            <div className="min-w-0">
-                                                <label className="mb-0 text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-500 font-semibold block">Production Key</label>
-                                                <p className="font-mono text-sm mt-1 text-slate-800 dark:text-slate-300 truncate">rk_live_•••••••••••••••••v8Lp</p>
-                                            </div>
-                                            <div className="flex gap-2 shrink-0">
-                                                <button className="p-2 rounded-full hover:bg-white dark:hover:bg-[#1C2128] text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all border border-transparent hover:border-slate-200 dark:hover:border-white/10 shadow-sm hover:shadow">
-                                                    <Copy size={18} />
-                                                </button>
-                                                <button className="p-2 rounded-full hover:bg-white dark:hover:bg-[#1C2128] text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all border border-transparent hover:border-slate-200 dark:hover:border-white/10 shadow-sm hover:shadow">
-                                                    <RefreshCw size={18} />
-                                                </button>
-                                            </div>
+                                        <div className="space-y-3">
+                                            {/* New key reveal */}
+                                            {newKeyValue && (
+                                                <div className="bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/30 rounded-2xl p-4">
+                                                    <p className="text-xs font-bold text-green-700 dark:text-green-400 mb-1">🔑 Save this key — it won&apos;t be shown again!</p>
+                                                    <div className="flex items-center gap-2">
+                                                        <code className="text-xs font-mono text-green-800 dark:text-green-300 flex-1 truncate">{newKeyValue}</code>
+                                                        <button onClick={() => { navigator.clipboard.writeText(newKeyValue); }} className="text-green-700 dark:text-green-400 hover:text-green-900">
+                                                            <Copy size={14} />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {/* Existing keys */}
+                                            {apiKeys.length === 0 ? (
+                                                <p className="text-sm text-slate-400 dark:text-slate-500 text-center py-4">No API keys yet.</p>
+                                            ) : apiKeys.map(k => (
+                                                <div key={k.id} className="bg-slate-100 dark:bg-[#0B0E14] p-4 rounded-2xl border border-slate-200 dark:border-white/10 flex items-center justify-between shadow-inner space-x-4">
+                                                    <div className="min-w-0">
+                                                        <label className="mb-0 text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-500 font-semibold block">Key Prefix</label>
+                                                        <p className="font-mono text-sm mt-1 text-slate-800 dark:text-slate-300">{k.prefix}••••••••••••</p>
+                                                    </div>
+                                                    <div className="flex gap-2 shrink-0">
+                                                        <button onClick={() => handleCopyKey(k.prefix, k.id)} className="p-2 rounded-full hover:bg-white dark:hover:bg-[#1C2128] text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all border border-transparent hover:border-slate-200 dark:hover:border-white/10 shadow-sm">
+                                                            {copiedKeyId === k.id ? <Check size={16} className="text-green-500" /> : <Copy size={16} />}
+                                                        </button>
+                                                        <button onClick={() => handleDeleteApiKey(k.id)} className="p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-500/10 text-slate-500 dark:text-slate-400 hover:text-red-500 transition-all border border-transparent hover:border-red-200 dark:hover:border-red-500/20 shadow-sm">
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            {/* Generate new key */}
+                                            <button
+                                                onClick={handleCreateApiKey}
+                                                disabled={isCreatingKey}
+                                                className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border-2 border-dashed border-slate-200 dark:border-white/10 text-sm font-semibold text-slate-500 dark:text-slate-400 hover:border-[#007AFF] hover:text-[#007AFF] dark:hover:border-blue-400 dark:hover:text-blue-400 transition-all disabled:opacity-50"
+                                            >
+                                                {isCreatingKey ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+                                                Generate New Key
+                                            </button>
                                         </div>
                                     </section>
                                 </div>
 
                                 {/* Right Column: The Mirror Chat UI */}
                                 <div className="col-span-12 lg:col-span-5">
-                                    <div className="bg-white/90 dark:bg-[#1C2128]/90 backdrop-blur-xl border border-slate-200 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] rounded-[32px] h-[760px] flex flex-col overflow-hidden sticky top-28">
+                                    <div className="bg-white/90 dark:bg-[#1C2128]/90 backdrop-blur-xl border border-slate-200 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] rounded-[32px] h-[calc(100vh-160px)] min-h-[500px] max-h-[800px] flex flex-col overflow-hidden sticky top-28">
                                         <div className="p-6 border-b border-slate-200 dark:border-white/10 bg-transparent flex items-center justify-between">
                                             <div className="flex items-center gap-4">
                                                 <div className="w-2.5 h-2.5 bg-green-500 dark:bg-green-400 rounded-full shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
@@ -276,49 +477,67 @@ export default function CandidateActiveDashboard() {
                                                     <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium tracking-wide">REAL-TIME PREVIEW</p>
                                                 </div>
                                             </div>
-                                            <button className="text-slate-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 transition-colors p-2 rounded-full hover:bg-slate-100 dark:hover:bg-white/5">
+                                            <button onClick={() => setChatMessages([])} className="text-slate-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 transition-colors p-2 rounded-full hover:bg-slate-100 dark:hover:bg-white/5">
                                                 <Trash2 size={18} />
                                             </button>
                                         </div>
 
                                         <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-white/20 scrollbar-track-transparent bg-slate-50/50 dark:bg-[#0B0E14]/40">
-                                            {/* Outgoing Message (Recruiter) */}
-                                            <div className="flex flex-col items-end">
-                                                <div className="bg-[#007AFF] text-white rounded-[22px] rounded-br-[6px] px-4 py-2.5 text-[15px] leading-relaxed max-w-[85%] shadow-sm">
-                                                    Hi {userName.split(' ')[0]}! I saw your portfolio. What&apos;s your process for handoff between design and engineering?
+                                            {chatMessages.length === 0 && (
+                                                <div className="h-full flex items-center justify-center text-center">
+                                                    <p className="text-slate-400 dark:text-slate-500 text-sm">Start a conversation to preview your AI twin&apos;s responses.</p>
                                                 </div>
-                                                <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-2 font-medium mr-1 uppercase">Recruiter • 2:14 PM</span>
-                                            </div>
-
-                                            {/* Incoming Message (AI Agent) */}
-                                            <div className="flex flex-col items-start gap-1">
-                                                <div className="flex items-end gap-2 w-full">
-                                                    <div className="bg-white dark:bg-[#2A303C] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-white/5 rounded-[22px] rounded-bl-[6px] px-4 py-2.5 text-[15px] leading-relaxed max-w-[85%] shadow-sm">
-                                                        I treat handoff as a continuous conversation. I build robust design systems where every component is documented with its technical constraints, motion specs, and accessibility requirements.
-                                                    </div>
+                                            )}
+                                            {chatMessages.map((msg, i) => (
+                                                <div key={i} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start gap-1'}`}>
+                                                    {msg.role === 'user' ? (
+                                                        <>
+                                                            <div className="bg-[#007AFF] text-white rounded-[22px] rounded-br-[6px] px-4 py-2.5 text-[15px] leading-relaxed max-w-[85%] shadow-sm">
+                                                                {msg.text}
+                                                            </div>
+                                                            <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 font-medium mr-1 uppercase">You • Now</span>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <div className="flex items-end gap-2 w-full">
+                                                                <div className="bg-white dark:bg-[#2A303C] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-white/5 rounded-[22px] rounded-bl-[6px] px-4 py-2.5 text-[15px] leading-relaxed max-w-[85%] shadow-sm whitespace-pre-wrap">
+                                                                    {msg.text || (
+                                                                        <span className="flex items-center gap-2 py-1 text-slate-500 dark:text-slate-400 italic text-sm">
+                                                                            <span className="flex gap-1">
+                                                                                <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" />
+                                                                                <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0.15s' }} />
+                                                                                <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0.3s' }} />
+                                                                            </span>
+                                                                            {userName.split(' ')[0]}&apos;s twin is thinking...
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                            <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 font-medium ml-1 uppercase">{userName.split(' ')[0]} AI • Now</span>
+                                                        </>
+                                                    )}
                                                 </div>
-                                                <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-2 font-medium ml-1 uppercase">{userName.split(' ')[0]} AI • Now</span>
-                                            </div>
-
-                                            {/* Typing Indicator */}
-                                            <div className="flex items-center gap-3 ml-1 pt-2">
-                                                <div className="flex gap-1.5 bg-white dark:bg-[#2A303C] border border-slate-200 dark:border-white/5 px-4 py-3.5 rounded-full shadow-sm">
-                                                    <span className="w-1.5 h-1.5 bg-slate-400 dark:bg-slate-500 rounded-full animate-bounce"></span>
-                                                    <span className="w-1.5 h-1.5 bg-slate-400 dark:bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: "0.15s" }}></span>
-                                                    <span className="w-1.5 h-1.5 bg-slate-400 dark:bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: "0.3s" }}></span>
-                                                </div>
-                                            </div>
+                                            ))}
+                                            <div ref={chatEndRef} />
                                         </div>
 
                                         <div className="p-6 bg-transparent border-t border-slate-200 dark:border-white/10 backdrop-blur-md">
                                             <div className="relative flex items-center gap-2">
                                                 <input
                                                     className="w-full bg-white dark:bg-[#0B0E14] border border-slate-200 dark:border-white/10 rounded-full px-5 py-3.5 pr-14 text-[15px] focus:ring-2 focus:ring-[#007AFF] placeholder:text-slate-400 dark:placeholder:text-slate-500 outline-none transition-all shadow-inner text-slate-900 dark:text-white"
-                                                    placeholder="Test your agent..."
+                                                    placeholder={botId ? "Test your agent..." : "Save a bot first to chat..."}
                                                     type="text"
+                                                    value={chatInput}
+                                                    onChange={e => setChatInput(e.target.value)}
+                                                    onKeyDown={e => { if (e.key === 'Enter') handleChatSend(); }}
+                                                    disabled={!botId || isStreaming}
                                                 />
-                                                <button className="absolute right-2 w-9 h-9 rounded-full bg-[#007AFF] text-white flex items-center justify-center hover:bg-blue-600 transition-colors shadow-sm">
-                                                    <ArrowUp size={18} strokeWidth={2.5} />
+                                                <button
+                                                    onClick={handleChatSend}
+                                                    disabled={!botId || isStreaming || !chatInput.trim()}
+                                                    className="absolute right-2 w-9 h-9 rounded-full bg-[#007AFF] text-white flex items-center justify-center hover:bg-blue-600 transition-colors shadow-sm disabled:opacity-40"
+                                                >
+                                                    {isStreaming ? <Loader2 size={16} className="animate-spin" /> : <ArrowUp size={18} strokeWidth={2.5} />}
                                                 </button>
                                             </div>
                                             <p className="text-center text-[10px] text-slate-400 dark:text-slate-500 mt-5 font-semibold uppercase tracking-[0.2em]">Twinly AI resume engine v2.0</p>
@@ -389,6 +608,29 @@ export default function CandidateActiveDashboard() {
                         {/* Tab: Settings */}
                         {activeTab === 'settings' && (
                             <div className="max-w-3xl space-y-8 animate-in fade-in duration-300">
+                                <section className="bg-white/80 dark:bg-[#1C2128]/80 backdrop-blur-md border border-slate-200 dark:border-white/10 shadow-sm rounded-3xl p-8">
+                                    <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-6">Appearance</h3>
+                                    <div className="space-y-4">
+                                        <div
+                                            onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+                                            className="flex items-center justify-between p-4 bg-slate-50 dark:bg-[#0B0E14] rounded-2xl border border-slate-200 dark:border-white/5 cursor-pointer hover:border-blue-200 dark:hover:border-purple-500/30 transition-colors"
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-10 h-10 rounded-full bg-white dark:bg-[#1C2128] flex items-center justify-center text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-white/10 shadow-sm">
+                                                    {resolvedTheme === 'dark' ? <Moon size={18} /> : <Sun size={18} className="text-amber-500" />}
+                                                </div>
+                                                <div>
+                                                    <h4 className="font-semibold text-sm text-slate-900 dark:text-white">Theme Preference</h4>
+                                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Switch between light and dark mode.</p>
+                                                </div>
+                                            </div>
+                                            <div className={`w-11 h-6 rounded-full relative shadow-inner transition-colors duration-300 ${resolvedTheme === 'dark' ? 'bg-blue-500 dark:bg-purple-500' : 'bg-slate-300'}`}>
+                                                <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-300 ${resolvedTheme === 'dark' ? 'left-6' : 'left-1'}`}></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </section>
+
                                 <section className="bg-white/80 dark:bg-[#1C2128]/80 backdrop-blur-md border border-slate-200 dark:border-white/10 shadow-sm rounded-3xl p-8">
                                     <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-6">Notification Preferences</h3>
                                     <div className="space-y-4">

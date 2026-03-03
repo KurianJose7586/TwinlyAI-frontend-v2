@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { createPortal } from "react-dom";
@@ -36,9 +36,15 @@ import {
     User,
     Shield,
     CheckCircle2,
-    Clock
+    Clock,
+    Loader2,
+    Sun,
+    Moon
 } from "lucide-react";
+import { useTheme } from "next-themes";
 import { Footer } from "@/components/layout/footer";
+import api from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 
 const AVATARS = [
     "https://api.dicebear.com/7.x/notionists/svg?seed=Felix&backgroundColor=e2e8f0",
@@ -151,10 +157,20 @@ const generateDoodles = (seedString: string) => {
     );
 };
 
+type Candidate = typeof MOCK_CANDIDATES[0];
+
 export default function RecruiterDashboard() {
+    const { user, logout } = useAuth();
+    const { setTheme, resolvedTheme } = useTheme();
     const [currentPage, setCurrentPage] = useState(1);
-    const [selectedCandidate, setSelectedCandidate] = useState<typeof MOCK_CANDIDATES[0] | null>(null);
+    const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
     const [mounted, setMounted] = useState(false);
+
+    // Search state
+    const [searchQuery, setSearchQuery] = useState("");
+    const [searchResults, setSearchResults] = useState<Candidate[] | null>(null);
+    const [isSearching, setIsSearching] = useState(false);
+    const [searchError, setSearchError] = useState<string | null>(null);
 
     // Header dropdown states
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -168,17 +184,74 @@ export default function RecruiterDashboard() {
         return () => clearTimeout(timeout);
     }, []);
 
-    const totalPages = Math.ceil(EXTENDED_CANDIDATES.length / ITEMS_PER_PAGE);
+    // Use real results if a search was done, else show mock candidates
+    const displayCandidates: Candidate[] = searchResults !== null
+        ? searchResults
+        : EXTENDED_CANDIDATES;
 
+    const totalPages = Math.ceil(displayCandidates.length / ITEMS_PER_PAGE);
     const indexOfLastCandidate = currentPage * ITEMS_PER_PAGE;
     const indexOfFirstCandidate = indexOfLastCandidate - ITEMS_PER_PAGE;
-    const currentCandidates = EXTENDED_CANDIDATES.slice(indexOfFirstCandidate, indexOfLastCandidate);
+    const currentCandidates = displayCandidates.slice(indexOfFirstCandidate, indexOfLastCandidate);
 
     const paginate = (pageNumber: number) => {
         if (pageNumber > 0 && pageNumber <= totalPages) {
             setCurrentPage(pageNumber);
             window.scrollTo({ top: 0, behavior: "smooth" });
         }
+    };
+
+    const handleSearch = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        if (!searchQuery.trim()) {
+            setSearchResults(null);
+            return;
+        }
+        setIsSearching(true);
+        setSearchError(null);
+        setCurrentPage(1);
+        try {
+            const res = await api.post("/recruiter/search", { query: searchQuery });
+            // Map backend results to the candidate shape the UI expects
+            const mapped: Candidate[] = (res.data as Array<{
+                id: string;
+                name: string;
+                skills: string[];
+                summary: string;
+                match_score: number;
+            }>).map((r, i) => ({
+                id: r.id,
+                name: r.name,
+                role: r.summary?.split('.')[0] || "AI Professional",
+                email: "",
+                linkedin: "",
+                quote: r.summary || "No summary available.",
+                match: r.match_score > 0 ? r.match_score : Math.max(70, 99 - i * 3),
+                matchStyle: i === 0
+                    ? "bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-400 border-green-200 dark:border-green-500/20"
+                    : "bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-500/20",
+                avatar: AVATARS[i % AVATARS.length],
+                skills: r.skills,
+            }));
+            setSearchResults(mapped.length > 0 ? mapped : []);
+        } catch (err: unknown) {
+            const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+            // Recruiters see a 403 if they're not logged in as recruiter — fall back to mocks
+            if ((err as { response?: { status?: number } })?.response?.status === 403) {
+                setSearchError("Recruiter account required. Showing sample results.");
+                setSearchResults(null);
+            } else {
+                setSearchError(detail || "Search failed. Showing sample results.");
+                setSearchResults(null);
+            }
+        }
+        setIsSearching(false);
+    };
+
+    const clearSearch = () => {
+        setSearchQuery("");
+        setSearchResults(null);
+        setSearchError(null);
     };
 
     return (
@@ -271,8 +344,20 @@ export default function RecruiterDashboard() {
                                     <button className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg flex items-center gap-3 transition-colors">
                                         <Bell size={16} className="text-slate-400" /> Alert Preferences
                                     </button>
+                                    <button
+                                        onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+                                        className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg flex items-center justify-between transition-colors mt-1"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            {resolvedTheme === 'dark' ? <Moon size={16} className="text-slate-400" /> : <Sun size={16} className="text-slate-400" />}
+                                            Dark Mode
+                                        </div>
+                                        <div className={`w-8 h-4 rounded-full relative shadow-inner transition-colors duration-300 ${resolvedTheme === 'dark' ? 'bg-purple-500' : 'bg-slate-300'}`}>
+                                            <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow-sm transition-transform duration-300 ${resolvedTheme === 'dark' ? 'left-4' : 'left-0.5'}`}></div>
+                                        </div>
+                                    </button>
                                     <div className="h-px bg-slate-200 dark:bg-white/10 my-2 mx-1"></div>
-                                    <button className="w-full text-left px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg flex items-center gap-3 transition-colors">
+                                    <button onClick={logout} className="w-full text-left px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg flex items-center gap-3 transition-colors">
                                         <LogOut size={16} /> Sign Out
                                     </button>
                                 </div>
@@ -296,8 +381,8 @@ export default function RecruiterDashboard() {
                                         <img src={AVATARS[0]} alt="Avatar" className="w-full h-full object-cover" />
                                     </div>
                                     <div>
-                                        <p className="text-sm font-bold text-slate-900 dark:text-white">Admin User</p>
-                                        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">admin@twinly.ai</p>
+                                        <p className="text-sm font-bold text-slate-900 dark:text-white">{user?.email?.split('@')[0] || "Recruiter"}</p>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">{user?.email || "recruiter@twinly.ai"}</p>
                                     </div>
                                 </div>
                                 <div className="p-2">
@@ -306,6 +391,10 @@ export default function RecruiterDashboard() {
                                     </button>
                                     <button className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg flex items-center gap-3 transition-colors">
                                         <Briefcase size={16} className="text-slate-400" /> Active Roles
+                                    </button>
+                                    <div className="h-px bg-slate-200 dark:bg-white/10 my-1 mx-1"></div>
+                                    <button onClick={logout} className="w-full text-left px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg flex items-center gap-3 transition-colors">
+                                        <LogOut size={16} /> Sign Out
                                     </button>
                                 </div>
                             </div>
@@ -321,21 +410,41 @@ export default function RecruiterDashboard() {
                 </div>
 
                 <div className="max-w-3xl mx-auto mb-12">
-                    <div className="relative group">
+                    <form onSubmit={handleSearch} className="relative group">
                         <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none">
-                            <Search className="text-blue-600 dark:text-purple-500 w-6 h-6" />
+                            {isSearching
+                                ? <Loader2 className="text-blue-600 dark:text-purple-500 w-6 h-6 animate-spin" />
+                                : <Search className="text-blue-600 dark:text-purple-500 w-6 h-6" />}
                         </div>
                         <input
                             className="w-full h-16 pl-14 pr-32 bg-white dark:bg-[#1C2128] border border-slate-200 dark:border-white/10 rounded-2xl shadow-sm focus:ring-2 focus:ring-blue-600/20 dark:focus:ring-purple-500/20 focus:border-blue-600 dark:focus:border-purple-500 focus:outline-none text-xl font-medium text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-all"
                             placeholder="Search for a Python dev with LLM experience..."
                             type="text"
+                            value={searchQuery}
+                            onChange={e => setSearchQuery(e.target.value)}
                         />
-                        <div className="absolute right-3 top-3 bottom-3 flex items-center">
-                            <button className="h-full px-6 bg-blue-600 dark:bg-purple-600 text-white rounded-xl font-semibold text-sm hover:bg-blue-700 dark:hover:bg-purple-700 transition-colors shadow-sm">
-                                Search
+                        <div className="absolute right-3 top-3 bottom-3 flex items-center gap-1">
+                            {searchQuery && (
+                                <button type="button" onClick={clearSearch} className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors">
+                                    <X size={18} />
+                                </button>
+                            )}
+                            <button type="submit" disabled={isSearching} className="h-full px-6 bg-blue-600 dark:bg-purple-600 text-white rounded-xl font-semibold text-sm hover:bg-blue-700 dark:hover:bg-purple-700 transition-colors shadow-sm disabled:opacity-60">
+                                {isSearching ? "Searching..." : "Search"}
                             </button>
                         </div>
-                    </div>
+                    </form>
+
+                    {searchError && (
+                        <p className="mt-3 text-center text-sm text-amber-600 dark:text-amber-400">{searchError}</p>
+                    )}
+                    {searchResults !== null && (
+                        <p className="mt-3 text-center text-sm text-slate-500 dark:text-slate-400">
+                            {searchResults.length === 0
+                                ? "No candidates found for that query."
+                                : `Found ${searchResults.length} candidate${searchResults.length !== 1 ? 's' : ''} matching your search.`}
+                        </p>
+                    )}
 
                     <div className="flex gap-2 mt-6 justify-center overflow-x-auto pb-2 scrollbar-none">
                         <span className="px-4 py-1.5 bg-white dark:bg-[#1C2128] border border-slate-200 dark:border-white/10 rounded-full text-xs font-semibold flex items-center gap-2 shadow-sm text-slate-900 dark:text-white">
@@ -383,7 +492,18 @@ export default function RecruiterDashboard() {
                                 </div>
                             </div>
                             <div className="flex gap-2 mt-auto">
-                                <Link href="/recruiter/chat" className="flex-1" onClick={(e) => e.stopPropagation()}>
+                                <Link
+                                    href="/recruiter/chat"
+                                    className="flex-1"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        // Pass bot ID to the chat page via localStorage
+                                        if (candidate.id) {
+                                            localStorage.setItem("recruiter_chat_botId", candidate.id.split('_')[0]);
+                                            localStorage.setItem("recruiter_chat_botName", candidate.name);
+                                        }
+                                    }}
+                                >
                                     <button className="w-full py-2 rounded-lg bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-white text-[13px] font-semibold hover:bg-slate-200 dark:hover:bg-white/10 transition-colors">
                                         Chat
                                     </button>

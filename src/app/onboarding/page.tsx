@@ -4,7 +4,9 @@ import React, { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, ChevronLeft, Check, Sparkles, Plus, X, Upload } from "lucide-react";
+import { ArrowRight, ChevronLeft, Check, Sparkles, Plus, X, Upload, AlertCircle } from "lucide-react";
+import api from "@/lib/api";
+import { setToken, setStoredUser } from "@/lib/auth";
 
 const INITIAL_AVATAR_OPTIONS = [
     "https://api.dicebear.com/7.x/notionists/svg?seed=Felix&backgroundColor=e2e8f0",
@@ -101,6 +103,8 @@ export default function OnboardingWizard() {
     const [step, setStep] = useState(1);
     const [formData, setFormData] = useState<FormData>(defaultFormData);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [submitError, setSubmitError] = useState<string | null>(null);
+    const [password, setPassword] = useState("");
     const [avatarOptions, setAvatarOptions] = useState(INITIAL_AVATAR_OPTIONS);
     const [showMoreContact, setShowMoreContact] = useState(false);
 
@@ -166,18 +170,83 @@ export default function OnboardingWizard() {
         }
     };
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         setIsSubmitting(true);
-        // Clear local storage on complete
-        localStorage.removeItem(STORAGE_KEY);
-        // Simulate API call
-        setTimeout(() => {
+        setSubmitError(null);
+
+        try {
+            // 1. Create account
+            await api.post("/auth/signup", {
+                email: formData.email,
+                password: password || "TwinlyDefault123!",
+                role,
+            });
+
+            // 2. Log in to get JWT
+            const loginForm = new URLSearchParams();
+            loginForm.append("username", formData.email);
+            loginForm.append("password", password || "TwinlyDefault123!");
+            const loginRes = await api.post("/auth/login", loginForm, {
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            });
+            const token: string = loginRes.data.access_token;
+            setToken(token);
+            setStoredUser({ email: formData.email, role: role as "candidate" | "recruiter" });
+
+            // 3. Create bot (the AI Twin)
+            const botName = `${formData.firstName} ${formData.lastName}`;
+            const botRes = await api.post("/bots/create", { name: botName }, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            const botId: string = botRes.data.id ?? botRes.data._id;
+
+            // 4. Persist profile to localStorage for the dashboard
+            localStorage.setItem("twinly_botId", botId);
+            localStorage.setItem("twinly_userName", botName);
+            localStorage.setItem("userAvatar", formData.avatarUrl);
+            localStorage.setItem("userName", botName);
+            localStorage.removeItem(STORAGE_KEY);
+
+            // 5. Navigate to empty state (upload resume first)
             if (role === "recruiter") {
                 router.push("/recruiter");
             } else {
-                router.push("/dashboard");
+                router.push("/candidate-empty");
             }
-        }, 2500);
+        } catch (err: unknown) {
+            const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+            if (typeof detail === "string" && detail.includes("already exists")) {
+                // User already has an account — just log them in
+                try {
+                    const loginForm = new URLSearchParams();
+                    loginForm.append("username", formData.email);
+                    loginForm.append("password", password || "TwinlyDefault123!");
+                    const loginRes = await api.post("/auth/login", loginForm, {
+                        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    });
+                    const token: string = loginRes.data.access_token;
+                    setToken(token);
+                    setStoredUser({ email: formData.email, role: role as "candidate" | "recruiter" });
+                    localStorage.removeItem(STORAGE_KEY);
+                    router.push(role === "recruiter" ? "/recruiter" : "/candidate-empty");
+                    return;
+                } catch {
+                    setSubmitError("Account exists but incorrect password. Please use the login page.");
+                }
+            } else {
+                let errorMsg = "Something went wrong. Please try again.";
+                if (typeof detail === "string") {
+                    errorMsg = detail;
+                } else if (Array.isArray(detail)) {
+                    const detailArr = detail as any[];
+                    if (detailArr.length > 0 && detailArr[0].msg) {
+                        errorMsg = detailArr.map((d: any) => d.msg).join(", ");
+                    }
+                }
+                setSubmitError(errorMsg);
+            }
+            setIsSubmitting(false);
+        }
     };
 
     const handleAddProject = () => {
@@ -424,6 +493,11 @@ export default function OnboardingWizard() {
                                                     <input type="email" placeholder="hello@example.com" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                                                         className="w-full bg-slate-50 dark:bg-[#1C2128] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-[#F9FAFB] px-6 py-4 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/10 dark:focus:ring-purple-500/20 focus:border-blue-500 dark:focus:border-purple-400 transition-all" autoFocus />
                                                 </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-2 ml-2">Password (Required)</label>
+                                                    <input type="password" placeholder="Create a strong password" value={password} onChange={(e) => setPassword(e.target.value)}
+                                                        className="w-full bg-slate-50 dark:bg-[#1C2128] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-[#F9FAFB] px-6 py-4 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/10 dark:focus:ring-purple-500/20 focus:border-blue-500 dark:focus:border-purple-400 transition-all" />
+                                                </div>
 
                                                 {showMoreContact ? (
                                                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="space-y-5">
@@ -486,51 +560,6 @@ export default function OnboardingWizard() {
                                                         ))}
                                                     </div>
                                                 </div>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* ----------------- STEP 4: PROJECTS OR HIRING FOCUS ----------------- */}
-                                    {step === 4 && role === 'candidate' && (
-                                        <div className="flex-1 flex flex-col justify-center max-w-lg mx-auto w-full">
-                                            <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-800 dark:text-[#F9FAFB] mb-4 text-center">Nice to meet you, {formData.firstName || 'there'}!</h1>
-                                            <p className="text-slate-500 dark:text-[#9CA3AF] text-lg text-center mb-10">How should recruiters reach you?</p>
-                                            <div className="space-y-5">
-                                                <div>
-                                                    <label className="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-2 ml-2">Email (Required)</label>
-                                                    <input type="email" placeholder="hello@example.com" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                                        className="w-full bg-slate-50 dark:bg-[#1C2128] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-[#F9FAFB] px-6 py-4 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/10 dark:focus:ring-purple-500/20 focus:border-blue-500 dark:focus:border-purple-400 transition-all" autoFocus />
-                                                </div>
-
-                                                {showMoreContact ? (
-                                                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="space-y-5">
-                                                        <div>
-                                                            <label className="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-2 ml-2">Phone (Optional)</label>
-                                                            <input type="tel" placeholder="+1 (555) 000-0000" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                                                className="w-full bg-slate-50 dark:bg-[#1C2128] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-[#F9FAFB] px-6 py-4 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/10 dark:focus:ring-purple-500/20 focus:border-blue-500 dark:focus:border-purple-400 transition-all" />
-                                                        </div>
-                                                        <div>
-                                                            <label className="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-3 ml-2">Preferred Contact Method</label>
-                                                            <div className="flex flex-wrap gap-2">
-                                                                {['Email', 'Phone', 'LinkedIn', 'Text Message'].map(pref => (
-                                                                    <button key={pref}
-                                                                        onClick={() => {
-                                                                            const prefs = formData.contactPreference.includes(pref) ? formData.contactPreference.filter(p => p !== pref) : [...formData.contactPreference, pref];
-                                                                            setFormData({ ...formData, contactPreference: prefs });
-                                                                        }}
-                                                                        className={`px-4 py-2 rounded-full border text-sm font-semibold transition-all ${formData.contactPreference.includes(pref) ? 'bg-blue-600/10 dark:bg-purple-500/20 border-blue-600 dark:border-purple-500 text-blue-600 dark:text-purple-400' : 'bg-slate-50 dark:bg-[#1C2128] border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-white/20'}`}
-                                                                    >
-                                                                        {pref}
-                                                                    </button>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    </motion.div>
-                                                ) : (
-                                                    <button onClick={() => setShowMoreContact(true)} className="w-full py-3 border border-dashed border-slate-300 dark:border-white/20 rounded-2xl text-slate-500 dark:text-slate-400 font-medium hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
-                                                        Add phone or preferences (Optional)
-                                                    </button>
-                                                )}
                                             </div>
                                         </div>
                                     )}
@@ -733,8 +762,23 @@ export default function OnboardingWizard() {
                                 </motion.div>
                             </AnimatePresence>
 
+                            {/* Error Display */}
+                            <AnimatePresence>
+                                {submitError && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, scale: 0.95 }}
+                                        className="mt-6 p-4 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 rounded-2xl flex items-center justify-center gap-2"
+                                    >
+                                        <AlertCircle size={20} />
+                                        <span className="font-medium text-sm">{submitError}</span>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+
                             {/* Footer / Next Button */}
-                            <div className="mt-12 flex justify-end">
+                            <div className="mt-8 flex justify-end">
                                 <button
                                     onClick={handleNext}
                                     disabled={!isStepValid()}

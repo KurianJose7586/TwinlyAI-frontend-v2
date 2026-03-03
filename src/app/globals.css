@@ -38,8 +38,14 @@
       0 0 2px rgba(129, 140, 248, 0.3);
   }
 
+  *,
+  ::before,
+  ::after {
+    @apply transition-colors duration-300;
+  }
+
   body {
-    @apply antialiased bg-[var(--bg-main)] text-[var(--text-main)] transition-colors duration-300;
+    @apply antialiased bg-[var(--bg-main)] text-[var(--text-main)];
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 

@@ -1,11 +1,11 @@
 "use client";
 
-import { motion, useScroll, useTransform, useSpring, useMotionValue } from "framer-motion";
-import { useRef } from "react";
+import { motion } from "framer-motion";
 import { Check, User } from "lucide-react";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
 import { DotPatternLogo } from "@/components/ui/dot-pattern-logo";
+import { ContainerScroll } from "@/components/ui/container-scroll-animation";
 
 // --- Helper Component: Subtle Typing Effect ---
 const AnimatedTypingText = ({ text }: { text: string }) => {
@@ -44,59 +44,19 @@ const AnimatedTypingText = ({ text }: { text: string }) => {
 };
 
 export default function LandingPage() {
-  const targetRef = useRef<HTMLDivElement>(null);
-
-  // 1. Smooth Parallax Scroll
-  const { scrollYProgress } = useScroll({
-    target: targetRef,
-    offset: ["start start", "end start"],
-  });
-  const smoothY = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 });
-  const y = useTransform(smoothY, [0, 1], ["0%", "40%"]);
-
-  // 2. 3D Hover Tilt Logic
-  const mouseX = useMotionValue(0);
-  const mouseY = useMotionValue(0);
-  const rotateX = useTransform(mouseY, [-0.5, 0.5], ["3deg", "-3deg"]);
-  const rotateY = useTransform(mouseX, [-0.5, 0.5], ["-3deg", "3deg"]);
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width - 0.5;
-    const y = (e.clientY - rect.top) / rect.height - 0.5;
-    mouseX.set(x);
-    mouseY.set(y);
-  };
-
-  const handleMouseLeave = () => {
-    mouseX.set(0);
-    mouseY.set(0);
-  };
+  // We're removing the heavy nested useMotionValue tilt calculations because it combats ContainerScroll
+  // and compounds lag. The primary effect should just be the 3D scroll coming from ContainerScroll.
 
   return (
     <main className="min-h-screen bg-[var(--bg-main)] relative overflow-x-hidden">
       <Navbar />
 
       {/* Hero Section */}
-      <section className="pt-40 pb-24 overflow-visible bg-[var(--bg-main)]" ref={targetRef}>
-        <div className="max-w-[1400px] mx-auto px-6">
-          <motion.div
-            className="hero-container rounded-[48px] pt-24 pb-48 px-8 text-center relative overflow-hidden"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-          >
-            <div className="grid-pattern absolute inset-0 pointer-events-none"></div>
-            <div className="relative z-10">
-              <motion.div
-                className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[var(--nav-glass)] border border-indigo-500/30 text-[12px] font-bold text-[var(--brand-purple)] uppercase tracking-wider mb-10 shadow-lg backdrop-blur-sm"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.2 }}
-              >
-                <span className="bg-indigo-600 text-white px-2 py-0.5 rounded-full text-[10px] mr-1">New</span>
-                Enterprise v2.0 Now Live
-              </motion.div>
+      <section className="bg-[var(--bg-main)]">
+        <ContainerScroll
+          titleComponent={
+            <div className="flex flex-col items-center pb-8 pt-8 md:pt-20">
+
               <motion.h1
                 className="text-[64px] md:text-[88px] font-bold tracking-tighter text-[var(--text-main)] leading-[0.95] mb-8"
                 initial={{ opacity: 0, y: 30 }}
@@ -108,7 +68,7 @@ export default function LandingPage() {
                 Now Alive.
               </motion.h1>
               <motion.p
-                className="text-[22px] text-[var(--text-muted)] max-w-2xl mx-auto mb-12 leading-relaxed font-light"
+                className="text-[22px] text-[var(--text-muted)] max-w-2xl mx-auto mb-12 leading-relaxed font-light px-4"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.5, duration: 0.8 }}
@@ -130,53 +90,37 @@ export default function LandingPage() {
                 </button>
               </motion.div>
             </div>
-          </motion.div>
-
+          }
+        >
           {/* Interactive UI Window */}
-          <motion.div
-            className="relative mx-auto max-w-[960px] w-full -mt-32 z-20 px-4"
-            style={{ y }} // Kept only the smooth parallax scrolling here
-            initial={{ opacity: 0, y: 100 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.9, duration: 1, type: "spring", stiffness: 50 }}
+          <div
+            className="w-full h-full bg-[#111318] rounded-2xl overflow-hidden will-change-transform shadow-[0_0_80px_rgba(255,255,255,0.05)]"
+            style={{
+              perspective: 1200
+            }}
           >
-            <motion.div
-              className="ui-window overflow-hidden text-left bg-[var(--ui-window-bg)] ring-1 ring-[var(--border-color)] shadow-2xl bg-white/5 backdrop-blur-sm"
-
-              // --- NEW: The "Pop Up" Hover Effect ---
-              whileHover={{
-                y: -16, // Lifts the window up by 16px
-                scale: 1.01, // Slight expansion to feel closer
-                boxShadow: "0 40px 80px -20px rgba(99, 102, 241, 0.3)" // Deep glowing shadow
-              }}
-              transition={{
-                type: "spring",
-                stiffness: 300,
-                damping: 20
-              }}
-            // -------------------------------------
-
+            <div
+              className="h-full w-full bg-[#111318] text-white rounded-2xl ring-1 ring-white/5 text-left transform-gpu"
             >
               {/* Header */}
-              <div className="chat-header px-6 py-4 flex items-center justify-between border-b border-[var(--border-color)] bg-[var(--nav-glass)]">
-                {/* ... Keep all your existing Chat Header code here ... */}
-                <div className="flex items-center gap-4">
-                  <div className="flex gap-2">
-                    <div className="w-3 h-3 rounded-full bg-red-500/50 hover:bg-red-500 transition-colors cursor-pointer"></div>
-                    <div className="w-3 h-3 rounded-full bg-yellow-500/50 hover:bg-yellow-500 transition-colors cursor-pointer"></div>
-                    <div className="w-3 h-3 rounded-full bg-green-500/50 hover:bg-green-500 transition-colors cursor-pointer"></div>
+              <div className="chat-header px-8 py-5 flex items-center justify-between border-b border-white/5 bg-[#111318]">
+                <div className="flex items-center gap-6">
+                  <div className="flex gap-2.5">
+                    <div className="w-3.5 h-3.5 rounded-full bg-[#ff5f56] hover:bg-red-500 transition-colors cursor-pointer"></div>
+                    <div className="w-3.5 h-3.5 rounded-full bg-[#ffbd2e] hover:bg-yellow-500 transition-colors cursor-pointer"></div>
+                    <div className="w-3.5 h-3.5 rounded-full bg-[#27c93f] hover:bg-green-500 transition-colors cursor-pointer"></div>
                   </div>
-                  <div className="h-4 w-px bg-[var(--border-color)] mx-1"></div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[18px] text-[var(--text-muted)]">💬</span>
-                    <span className="text-[12px] font-bold text-[var(--text-muted)] tracking-wide uppercase">
+                  <div className="h-5 w-px bg-white/10 mx-2"></div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[20px] text-white/60">💬</span>
+                    <span className="text-[13px] font-bold text-white/60 tracking-wider uppercase">
                       Candidate Portal | Technical Screening
                     </span>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 bg-indigo-500/10 px-3 py-1.5 rounded-full border border-indigo-500/20">
-                  <span className="flex h-2 w-2 rounded-full bg-indigo-500 animate-pulse"></span>
-                  <span className="text-[11px] font-bold text-indigo-500 uppercase tracking-widest">
+                <div className="flex items-center gap-3 bg-[#4F46E5]/10 px-4 py-2 rounded-full border border-[#4F46E5]/20">
+                  <span className="flex h-2.5 w-2.5 rounded-full bg-[#4F46E5] animate-pulse"></span>
+                  <span className="text-[12px] font-bold text-[#4F46E5] uppercase tracking-widest">
                     Digital Twin Active
                   </span>
                 </div>
@@ -184,7 +128,7 @@ export default function LandingPage() {
 
               {/* Chat Content - Staggered Storytelling */}
               <motion.div
-                className="p-8 md:p-14 space-y-12"
+                className="px-8 py-10 space-y-8"
                 initial="hidden"
                 whileInView="visible"
                 viewport={{ once: true, margin: "-100px" }}
@@ -193,77 +137,85 @@ export default function LandingPage() {
                 }}
               >
 
-                {/* 1. Hiring Manager Message */}
+                {/* 1. Hiring Manager Message (Now on Right) */}
                 <motion.div
-                  className="flex gap-6 max-w-[85%]"
-                  variants={{
-                    hidden: { opacity: 0, x: -20, scale: 0.95 },
-                    visible: { opacity: 1, x: 0, scale: 1, transition: { type: "spring", stiffness: 100 } }
-                  }}
-                >
-                  <div className="w-12 h-12 rounded-full bg-[var(--bg-card)] flex items-center justify-center shrink-0 border border-[var(--border-color)] shadow-sm">
-                    <User className="text-[var(--text-muted)] w-6 h-6" />
-                  </div>
-                  <div className="space-y-2">
-                    <div className="bg-[var(--bg-card)] border border-[var(--border-color)] text-[16px] p-6 rounded-[24px] rounded-tl-none leading-relaxed text-[var(--text-main)] shadow-sm">
-                      <AnimatedTypingText text="I see you've led several cloud migrations. Could you explain how you managed data consistency across hybrid environments during the switch?" />
-                    </div>
-                    <div className="flex items-center gap-2 px-1">
-                      <span className="text-[11px] text-[var(--text-muted)] font-bold uppercase tracking-wider">Hiring Manager</span>
-                    </div>
-                  </div>
-                </motion.div>
-
-                {/* 2. AI Twin Response */}
-                <motion.div
-                  className="flex gap-6 justify-end"
+                  className="flex gap-6 justify-end will-change-transform"
                   variants={{
                     hidden: { opacity: 0, x: 20, scale: 0.95 },
                     visible: { opacity: 1, x: 0, scale: 1, transition: { type: "spring", stiffness: 100 } }
                   }}
                 >
-                  <div className="space-y-2 text-right max-w-[85%]">
-                    <div className="bg-indigo-600 text-white text-[16px] p-6 rounded-[24px] rounded-tr-none leading-relaxed shadow-xl shadow-indigo-500/20 text-left relative group overflow-hidden">
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-[100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
-                      <AnimatedTypingText text="For those migrations, I leveraged a change-data-capture (CDC) pattern with Kafka. This allowed us to keep the legacy and cloud databases in sync within milliseconds, ensuring that users saw consistent data regardless of the cluster." />
+                  <div className="space-y-4 text-right max-w-[85%]">
+                    <div className="bg-[#1e2330] border-none text-[18px] p-6 md:p-8 rounded-[32px] rounded-tr-[8px] leading-[1.6] text-white/90 shadow-sm text-left">
+                      <AnimatedTypingText text="I see you&rsquo;ve led several cloud migrations. Could you explain how you managed data consistency across hybrid environments during the switch?" />
                     </div>
-                    <div className="flex items-center justify-end gap-2 px-1">
-                      <span className="text-[11px] text-indigo-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
-                        <Check className="w-3 h-3 text-indigo-400" /> Sarah's AI Twin
-                      </span>
-                      <span className="w-1 h-1 bg-indigo-500/30 rounded-full"></span>
-                      <span className="text-[11px] text-slate-400 italic">Technical voice match 98%</span>
+                    <div className="flex items-center justify-end gap-2 px-2">
+                      <span className="text-[12px] text-white/40 font-bold uppercase tracking-widest">Hiring Manager</span>
                     </div>
                   </div>
-                  <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 border-2 border-indigo-500/30 ring-4 ring-indigo-500/10">
-                    <img alt="Professional Profile" className="w-full h-full object-cover" src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&auto=format&fit=crop&w=256&q=80" />
+                  <div className="w-14 h-14 md:w-16 md:h-16 rounded-full overflow-hidden shrink-0 border-2 border-[#1e2330] ring-4 ring-white/5 bg-[#1e2330]">
+                    <img
+                      alt="Recruiter Profile"
+                      className="w-full h-full object-cover scale-[1.3] pt-2"
+                      src="https://api.dicebear.com/7.x/notionists/svg?seed=Michael&backgroundColor=e2e8f0"
+                    />
+                  </div>
+                </motion.div>
+
+                {/* 2. AI Twin Response (Now on Left) */}
+                <motion.div
+                  className="flex gap-6 max-w-[85%] will-change-transform"
+                  variants={{
+                    hidden: { opacity: 0, x: -20, scale: 0.95 },
+                    visible: { opacity: 1, x: 0, scale: 1, transition: { type: "spring", stiffness: 100 } }
+                  }}
+                >
+                  <div className="w-14 h-14 md:w-16 md:h-16 rounded-full overflow-hidden shrink-0 border-2 border-[#1e2330] ring-4 ring-white/5 bg-[#1e2330]">
+                    <img
+                      alt="Professional Profile"
+                      className="w-full h-full object-cover"
+                      src="https://api.dicebear.com/7.x/notionists/svg?seed=Sarah&backgroundColor=e2e8f0"
+                    />
+                  </div>
+                  <div className="space-y-4 text-left">
+                    <div className="bg-[#5c4dff] text-white text-[18px] p-6 md:p-8 rounded-[32px] rounded-tl-[8px] leading-[1.6] shadow-[0_0_80px_rgba(92,77,255,0.15)] relative group overflow-hidden">
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-[100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
+                      <AnimatedTypingText text="For those migrations, I leveraged a change-data-capture (CDC) pattern with Kafka. This allowed us to keep the legacy and cloud databases in sync within milliseconds, ensuring that users saw consistent data regardless of the cluster." />
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3 px-2">
+                      <span className="text-[12px] text-[#A5B4FC] font-bold uppercase tracking-widest flex items-center gap-2">
+                        <Check className="w-3.5 h-3.5 text-[#A5B4FC]" /> AI DIGITAL TWIN
+                      </span>
+                      <span className="w-1.5 h-1.5 bg-[#4F46E5]/40 rounded-full hidden sm:block"></span>
+                      <span className="text-[12px] text-white/40 italic">Technical voice match 98%</span>
+                    </div>
                   </div>
                 </motion.div>
 
                 {/* 3. Typing Indicator */}
                 <motion.div
-                  className="pt-8 border-t border-[var(--border-color)] flex items-center justify-between"
+                  className="pt-6 border-t border-white/5 flex items-center justify-between will-change-transform mt-2"
                   variants={{
                     hidden: { opacity: 0, y: 10 },
                     visible: { opacity: 1, y: 0 }
                   }}
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="flex gap-1 bg-[var(--bg-card)] px-3 py-2 rounded-full border border-[var(--border-color)]">
-                      <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce"></div>
-                      <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce delay-75"></div>
-                      <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce delay-150"></div>
+                  <div className="flex items-center gap-5">
+                    <div className="flex gap-1.5 bg-[#1e2330] px-4 py-3 rounded-full border border-white/5">
+                      <div className="w-2 h-2 bg-[#5c4dff] rounded-full animate-bounce"></div>
+                      <div className="w-2 h-2 bg-[#5c4dff] rounded-full animate-bounce delay-75"></div>
+                      <div className="w-2 h-2 bg-[#5c4dff] rounded-full animate-bounce delay-150"></div>
                     </div>
-                    <span className="text-[13px] text-[var(--text-muted)] italic">Hiring manager is typing...</span>
+                    <span className="text-[14px] text-white/40 italic">Hiring manager is typing...</span>
                   </div>
                   <div className="flex gap-4">
-                    <button className="text-[12px] font-bold text-indigo-500 hover:text-indigo-400 transition-colors">View Full Transcript</button>
+                    <button className="text-[14px] font-bold text-[#5c4dff] hover:text-[#7b6dff] transition-colors">View Full Transcript</button>
                   </div>
                 </motion.div>
               </motion.div>
-            </motion.div>
-          </motion.div>
-        </div>
+            </div>
+          </div>
+        </ContainerScroll>
       </section>
 
       {/* Stats Section */}
@@ -318,7 +270,7 @@ export default function LandingPage() {
                 Authentic intelligence, synced with your work.
               </h2>
               <p className="text-[20px] text-[var(--text-muted)] leading-relaxed">
-                Our AI twin isn't just a chatbot—it's a high-fidelity synthesis
+                Our AI twin isn&apos;t just a chatbot&mdash;it&apos;s a high-fidelity synthesis
                 of your professional identity. It integrates with your actual
                 work artifacts to sound and think exactly like you.
               </p>
