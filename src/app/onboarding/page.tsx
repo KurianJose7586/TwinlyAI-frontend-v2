@@ -66,7 +66,12 @@ type FormData = {
     hiringRoles: string[];
     techStackFocus: string[];
     hiringVelocity: string;
-    linkedIn: string;
+    // Shared links (added to shared or role-specific as needed)
+    github_url: string;
+    twitter_url: string;
+    website_url: string;
+    linkedin_url: string; // Renaming from linkedIn for backend consistency or just adding it
+    linkedIn: string; // Keeping for now to avoid breaking existing refs if any
     outreachPreference: string[];
 };
 
@@ -104,6 +109,10 @@ function OnboardingWizardForm() {
         techStackFocus: [],
         hiringVelocity: "",
         linkedIn: "",
+        github_url: "",
+        twitter_url: "",
+        website_url: "",
+        linkedin_url: "",
         outreachPreference: [],
     };
 
@@ -183,14 +192,12 @@ function OnboardingWizardForm() {
         setSubmitError(null);
 
         try {
-            // 1. Create account
             await api.post("/auth/signup", {
                 email: formData.email,
                 password: password || "TwinlyDefault123!",
                 role,
             });
 
-            // 2. Log in to get JWT
             const loginForm = new URLSearchParams();
             loginForm.append("username", formData.email);
             loginForm.append("password", password || "TwinlyDefault123!");
@@ -201,21 +208,36 @@ function OnboardingWizardForm() {
             setToken(token);
             setStoredUser({ email: formData.email, role: role as "candidate" | "recruiter" });
 
-            // 3. Create bot (the AI Twin)
-            const botName = `${formData.firstName} ${formData.lastName}`;
-            const botRes = await api.post("/bots/create", { name: botName }, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            const botId: string = botRes.data.id ?? botRes.data._id;
+            if (role === "candidate") {
+                const botName = `${formData.firstName} ${formData.lastName}`;
+                const botRes = await api.post("/bots/create", { name: botName }, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                const botId: string = botRes.data.id ?? botRes.data._id;
 
-            // 4. Persist profile to localStorage for the dashboard
-            localStorage.setItem("twinly_botId", botId);
-            localStorage.setItem("twinly_userName", botName);
-            localStorage.setItem("userAvatar", formData.avatarUrl);
-            localStorage.setItem("userName", botName);
+                await api.patch(`/bots/${botId}`, {
+                    linkedin_url: formData.linkedin_url || formData.linkedIn,
+                    github_url: formData.github_url,
+                    twitter_url: formData.twitter_url,
+                    website_url: formData.website_url,
+                    projects: formData.projects,
+                    summary: formData.aspirations,
+                }, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+
+                localStorage.setItem("twinly_botId", botId);
+                localStorage.setItem("twinly_userName", botName);
+                localStorage.setItem("userAvatar", formData.avatarUrl);
+                localStorage.setItem("userName", botName);
+            } else {
+                // For recruiters, just store basic info
+                localStorage.setItem("userName", `${formData.firstName} ${formData.lastName}`);
+                localStorage.setItem("userAvatar", formData.avatarUrl);
+            }
+
             localStorage.removeItem(STORAGE_KEY);
 
-            // 5. Navigate to empty state (upload resume first)
             if (role === "recruiter") {
                 router.push("/recruiter");
             } else {
@@ -224,7 +246,6 @@ function OnboardingWizardForm() {
         } catch (err: unknown) {
             const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
             if (typeof detail === "string" && detail.includes("already exists")) {
-                // User already has an account — just log them in
                 try {
                     const loginForm = new URLSearchParams();
                     loginForm.append("username", formData.email);
@@ -252,6 +273,7 @@ function OnboardingWizardForm() {
                     }
                 }
                 setSubmitError(errorMsg);
+                console.error("Submission error details:", detail, err);
             }
             setIsSubmitting(false);
         }
@@ -314,10 +336,10 @@ function OnboardingWizardForm() {
         if (role === "recruiter") {
             if (step === 3) return formData.companyName.trim() !== "";
             if (step === 4) return formData.hiringRoles.length > 0;
-            if (step === 5) return formData.email.trim() !== "";
+            if (step === 5) return formData.email.trim() !== "" && formData.email.includes("@") && password.length >= 8;
         } else {
             // Candidate validation
-            if (step === 3) return formData.email.trim() !== "" && formData.email.includes("@");
+            if (step === 3) return formData.email.trim() !== "" && formData.email.includes("@") && password.length >= 8;
             if (step === 4) {
                 if (formData.projects.length > 0) {
                     return formData.projects.every(p => p.name.trim() !== "");
@@ -503,8 +525,11 @@ function OnboardingWizardForm() {
                                                 </div>
                                                 <div>
                                                     <label className="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-2 ml-2">Password (Required)</label>
-                                                    <input type="password" placeholder="Create a strong password" value={password} onChange={(e) => setPassword(e.target.value)}
+                                                    <input type="password" placeholder="Min 8 characters" value={password} onChange={(e) => setPassword(e.target.value)}
                                                         className="w-full bg-slate-50 dark:bg-[#1C2128] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-[#F9FAFB] px-6 py-4 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/10 dark:focus:ring-purple-500/20 focus:border-blue-500 dark:focus:border-purple-400 transition-all" />
+                                                    {password.length > 0 && password.length < 8 && (
+                                                        <p className="text-red-500 text-xs mt-1 ml-2">Password must be at least 8 characters.</p>
+                                                    )}
                                                 </div>
 
                                                 {showMoreContact ? (
@@ -530,10 +555,25 @@ function OnboardingWizardForm() {
                                                                 ))}
                                                             </div>
                                                         </div>
+
+                                                        {/* --- NEW SOCIAL LINKS BLOCK --- */}
+                                                        <div className="pt-4 border-t border-slate-200 dark:border-white/10 space-y-4">
+                                                            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 ml-2">Professional Profiles</label>
+                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                                <input type="url" placeholder="LinkedIn URL" value={formData.linkedin_url} onChange={(e) => setFormData({ ...formData, linkedin_url: e.target.value, linkedIn: e.target.value })}
+                                                                    className="w-full bg-slate-50 dark:bg-[#1C2128] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-[#F9FAFB] px-4 py-3 rounded-xl focus:ring-2 focus:ring-blue-500/10 text-sm" />
+                                                                <input type="url" placeholder="GitHub URL" value={formData.github_url} onChange={(e) => setFormData({ ...formData, github_url: e.target.value })}
+                                                                    className="w-full bg-slate-50 dark:bg-[#1C2128] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-[#F9FAFB] px-4 py-3 rounded-xl focus:ring-2 focus:ring-blue-500/10 text-sm" />
+                                                                <input type="url" placeholder="Twitter URL" value={formData.twitter_url} onChange={(e) => setFormData({ ...formData, twitter_url: e.target.value })}
+                                                                    className="w-full bg-slate-50 dark:bg-[#1C2128] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-[#F9FAFB] px-4 py-3 rounded-xl focus:ring-2 focus:ring-blue-500/10 text-sm" />
+                                                                <input type="url" placeholder="Personal Website" value={formData.website_url} onChange={(e) => setFormData({ ...formData, website_url: e.target.value })}
+                                                                    className="w-full bg-slate-50 dark:bg-[#1C2128] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-[#F9FAFB] px-4 py-3 rounded-xl focus:ring-2 focus:ring-blue-500/10 text-sm" />
+                                                            </div>
+                                                        </div>
                                                     </motion.div>
                                                 ) : (
                                                     <button onClick={() => setShowMoreContact(true)} className="w-full py-3 border border-dashed border-slate-300 dark:border-white/20 rounded-2xl text-slate-500 dark:text-slate-400 font-medium hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
-                                                        Add phone or preferences (Optional)
+                                                        Add phone or professional links (Optional)
                                                     </button>
                                                 )}
                                             </div>
@@ -710,7 +750,16 @@ function OnboardingWizardForm() {
                                                 <div>
                                                     <label className="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-2 ml-2">Work Email (Required)</label>
                                                     <input type="email" placeholder="hiring@company.com" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                                        className="w-full bg-slate-50 dark:bg-[#1C2128] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-[#F9FAFB] px-6 py-4 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/10 dark:focus:ring-purple-500/20 focus:border-blue-500 dark:focus:border-purple-400 transition-all" autoFocus />
+                                                        className="w-full bg-slate-50 dark:bg-[#1C2128] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-[#F9FAFB] px-6 py-4 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/10 dark:focus:ring-purple-500/20 focus:border-blue-500 dark:focus:border-purple-400 transition-all text-lg font-medium" autoFocus />
+                                                </div>
+
+                                                <div>
+                                                    <label className="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-2 ml-2">Password (Required)</label>
+                                                    <input type="password" placeholder="Min 8 characters" value={password} onChange={(e) => setPassword(e.target.value)}
+                                                        className="w-full bg-slate-50 dark:bg-[#1C2128] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-[#F9FAFB] px-6 py-4 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500/10 dark:focus:ring-purple-500/20 focus:border-blue-500 dark:focus:border-purple-400 transition-all" />
+                                                    {password.length > 0 && password.length < 8 && (
+                                                        <p className="text-red-500 text-xs mt-1 ml-2">Password must be at least 8 characters.</p>
+                                                    )}
                                                 </div>
 
                                                 {showMoreContact ? (
@@ -736,10 +785,25 @@ function OnboardingWizardForm() {
                                                                 ))}
                                                             </div>
                                                         </div>
+
+                                                        {/* --- NEW SOCIAL LINKS BLOCK FOR RECRUITER --- */}
+                                                        <div className="pt-4 border-t border-slate-200 dark:border-white/10 space-y-4">
+                                                            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 ml-2">Links</label>
+                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                                <input type="url" placeholder="LinkedIn URL" value={formData.linkedin_url} onChange={(e) => setFormData({ ...formData, linkedin_url: e.target.value, linkedIn: e.target.value })}
+                                                                    className="w-full bg-slate-50 dark:bg-[#1C2128] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-[#F9FAFB] px-4 py-3 rounded-xl focus:ring-2 focus:ring-blue-500/10 text-sm" />
+                                                                <input type="url" placeholder="GitHub / Corp Repo" value={formData.github_url} onChange={(e) => setFormData({ ...formData, github_url: e.target.value })}
+                                                                    className="w-full bg-slate-50 dark:bg-[#1C2128] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-[#F9FAFB] px-4 py-3 rounded-xl focus:ring-2 focus:ring-blue-500/10 text-sm" />
+                                                                <input type="url" placeholder="Twitter URL" value={formData.twitter_url} onChange={(e) => setFormData({ ...formData, twitter_url: e.target.value })}
+                                                                    className="w-full bg-slate-50 dark:bg-[#1C2128] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-[#F9FAFB] px-4 py-3 rounded-xl focus:ring-2 focus:ring-blue-500/10 text-sm" />
+                                                                <input type="url" placeholder="Other Website" value={formData.website_url} onChange={(e) => setFormData({ ...formData, website_url: e.target.value })}
+                                                                    className="w-full bg-slate-50 dark:bg-[#1C2128] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-[#F9FAFB] px-4 py-3 rounded-xl focus:ring-2 focus:ring-blue-500/10 text-sm" />
+                                                            </div>
+                                                        </div>
                                                     </motion.div>
                                                 ) : (
                                                     <button onClick={() => setShowMoreContact(true)} className="w-full py-3 border border-dashed border-slate-300 dark:border-white/20 rounded-2xl text-slate-500 dark:text-slate-400 font-medium hover:bg-slate-50 dark:hover:bg-white/5 transition-colors mt-2">
-                                                        Add LinkedIn or Preferences (Optional)
+                                                        Add professional links or preferences (Optional)
                                                     </button>
                                                 )}
                                             </div>
@@ -798,6 +862,11 @@ function OnboardingWizardForm() {
                                     {step === totalSteps ? "Complete Setup" : "Continue"}
                                     {step < totalSteps && <ArrowRight size={20} />}
                                 </button>
+                                {!isStepValid() && step === 5 && role === 'recruiter' && (
+                                    <p className="absolute -bottom-6 right-0 text-[10px] text-slate-400">
+                                        {!formData.email.includes('@') ? 'Enter a valid email' : password.length < 8 ? 'Password must be 8+ chars' : ''}
+                                    </p>
+                                )}
                             </div>
                         </div>
                     </>

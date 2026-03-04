@@ -107,13 +107,13 @@ export default function RoleSelectionPage() {
                 </div>
 
                 <div className="mt-8 flex justify-center items-center gap-6 text-[10px] uppercase tracking-[0.2em] text-slate-300 dark:text-white/20 font-medium flex-wrap">
-                    <Link href="#" className="hover:text-white dark:hover:text-white/40 transition-colors">
+                    <button onClick={() => alert("Privacy Policy coming soon.")} className="hover:text-white dark:hover:text-white/40 transition-colors bg-transparent border-0 p-0 cursor-pointer uppercase tracking-widest font-medium">
                         Privacy Policy
-                    </Link>
-                    <Link href="#" className="hover:text-white dark:hover:text-white/40 transition-colors">
+                    </button>
+                    <button onClick={() => alert("Terms of Service coming soon.")} className="hover:text-white dark:hover:text-white/40 transition-colors bg-transparent border-0 p-0 cursor-pointer uppercase tracking-widest font-medium">
                         Terms of Service
-                    </Link>
-                    <span>© 2024 TwinlyAI</span>
+                    </button>
+                    <span>© 2025 TwinlyAI</span>
                     <span className="hidden sm:inline">•</span>
                     <span>Designed in Lajpat Nagar</span>
                 </div>

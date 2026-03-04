@@ -21,10 +21,12 @@ export function SolutionsHero() {
                     TwinlyAI transforms static PDFs into living, breathing AI agents. Enable instant screening, deeper discovery, and authentic representation.
                 </p>
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-20">
-                    <button className="bg-[var(--brand-purple)] text-white px-8 py-3.5 rounded-xl font-bold text-[15px] shadow-lg shadow-indigo-200 hover:opacity-90 transition-all">
-                        Get Started Now
-                    </button>
-                    <button className="bg-[var(--bg-card)] text-[var(--text-main)] border border-[var(--border-color)] px-8 py-3.5 rounded-xl font-bold text-[15px] hover:bg-[var(--bg-card-hover)] transition-all">
+                    <Link href="/role-selection">
+                        <button className="bg-[var(--brand-purple)] text-white px-8 py-3.5 rounded-xl font-bold text-[15px] shadow-lg shadow-indigo-200 hover:opacity-90 transition-all">
+                            Get Started Now
+                        </button>
+                    </Link>
+                    <button className="bg-[var(--bg-card)] text-[var(--text-main)] border border-[var(--border-color)] px-8 py-3.5 rounded-xl font-bold text-[15px] hover:bg-[var(--bg-card-hover)] transition-all" onClick={() => alert("Product demo coming soon.")}>
                         Watch Demo
                     </button>
                 </div>
@@ -138,11 +140,13 @@ export function CTASection() {
                     transition={{ duration: 0.5, delay: 0.2 }}
                     className="flex flex-col sm:flex-row items-center justify-center gap-6"
                 >
-                    <button className="w-full sm:w-auto bg-white text-[var(--brand-deep)] px-10 py-5 rounded-2xl font-bold text-lg shadow-xl hover:-translate-y-1 transition-all flex items-center justify-center gap-2">
-                        Start Your Free Trial
-                        <Check className="w-5 h-5" />
-                    </button>
-                    <button className="w-full sm:w-auto bg-indigo-700/50 backdrop-blur-sm text-white border border-indigo-500/50 px-10 py-5 rounded-2xl font-bold text-lg hover:bg-indigo-800/50 transition-all flex items-center justify-center gap-2">
+                    <Link href="/role-selection">
+                        <button className="w-full sm:w-auto bg-white text-[var(--brand-deep)] px-10 py-5 rounded-2xl font-bold text-lg shadow-xl hover:-translate-y-1 transition-all flex items-center justify-center gap-2">
+                            Start Your Free Trial
+                            <Check className="w-5 h-5" />
+                        </button>
+                    </Link>
+                    <button className="w-full sm:w-auto bg-indigo-700/50 backdrop-blur-sm text-white border border-indigo-500/50 px-10 py-5 rounded-2xl font-bold text-lg hover:bg-indigo-800/50 transition-all flex items-center justify-center gap-2" onClick={() => alert("Registration for live demos will be available soon.")}>
                         Book a Live Demo
                         <PlayCircle className="w-5 h-5" />
                     </button>

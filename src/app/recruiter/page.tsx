@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { createPortal } from "react-dom";
@@ -185,9 +185,10 @@ function RecruiterDashboardContent() {
     };
 
     // Use search results if available, otherwise fallback to initially loaded candidates
-    const displayCandidates: Candidate[] = searchResults !== null
-        ? searchResults
-        : formatCandidates(initialCandidatesData || []);
+    const displayCandidates = useMemo(() => {
+        const raw = searchResults !== null ? searchResults : formatCandidates(initialCandidatesData || []);
+        return raw;
+    }, [searchResults, initialCandidatesData]);
 
     const candidateIdParam = searchParams?.get('candidate');
 
@@ -283,9 +284,9 @@ function RecruiterDashboardContent() {
                         </h2>
                     </Link>
                     <nav className="hidden md:flex items-center gap-6 ml-4">
-                        <Link className="text-[14px] font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors" href="#">Overview</Link>
+                        <Link className="text-[14px] font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors" href="/recruiter" onClick={(e) => { e.preventDefault(); alert("Overview dashboard is coming soon. Using Candidates view as default."); }}>Overview</Link>
                         <Link className="text-[14px] font-semibold text-slate-900 dark:text-white relative after:content-[''] after:absolute after:-bottom-[19px] after:left-0 after:w-full after:h-[2px] after:bg-blue-600 dark:after:bg-purple-500" href="/recruiter">Candidates</Link>
-                        <Link className="text-[14px] font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors" href="#">Campaigns</Link>
+                        <Link className="text-[14px] font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors" href="/recruiter" onClick={(e) => { e.preventDefault(); alert("Campaign management is coming soon."); }}>Campaigns</Link>
                     </nav>
                 </div>
                 <div className="flex items-center gap-4 relative">
@@ -343,10 +344,10 @@ function RecruiterDashboardContent() {
                             {isSettingsOpen && (
                                 <div className="absolute top-full right-0 mt-4 w-64 bg-white dark:bg-[#1C2128] border border-slate-200 dark:border-white/10 rounded-2xl shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200 p-2">
                                     <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 px-3 pt-2">Preferences</h3>
-                                    <button className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg flex items-center gap-3 transition-colors">
+                                    <button onClick={() => alert("Security settings coming soon.")} className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg flex items-center gap-3 transition-colors">
                                         <Shield size={16} className="text-slate-400" /> Account Security
                                     </button>
-                                    <button className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg flex items-center gap-3 transition-colors">
+                                    <button onClick={() => alert("Notification preferences coming soon.")} className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg flex items-center gap-3 transition-colors">
                                         <Bell size={16} className="text-slate-400" /> Alert Preferences
                                     </button>
                                     <button
@@ -391,10 +392,10 @@ function RecruiterDashboardContent() {
                                     </div>
                                 </div>
                                 <div className="p-2">
-                                    <button className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg flex items-center gap-3 transition-colors">
+                                    <button onClick={() => alert("Profile management coming soon.")} className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg flex items-center gap-3 transition-colors">
                                         <User size={16} className="text-slate-400" /> My Profile
                                     </button>
-                                    <button className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg flex items-center gap-3 transition-colors">
+                                    <button onClick={() => alert("Active roles dashboard coming soon.")} className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg flex items-center gap-3 transition-colors">
                                         <Briefcase size={16} className="text-slate-400" /> Active Roles
                                     </button>
                                     <div className="h-px bg-slate-200 dark:bg-white/10 my-1 mx-1"></div>
@@ -519,7 +520,7 @@ function RecruiterDashboardContent() {
                                             e.stopPropagation();
                                             // Pass bot ID to the chat page via localStorage
                                             if (candidate.id) {
-                                                localStorage.setItem("recruiter_chat_botId", candidate.id.split('_')[0]);
+                                                localStorage.setItem("recruiter_chat_botId", candidate.id);
                                                 localStorage.setItem("recruiter_chat_botName", candidate.name);
                                             }
                                         }}
@@ -657,15 +658,24 @@ function RecruiterDashboardContent() {
                                 <a href={`mailto:${selectedCandidate.email}`} className="flex items-center justify-center w-10 h-10 rounded-full bg-slate-50 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 hover:text-blue-600 dark:hover:text-blue-400 transition-colors border border-slate-200 dark:border-white/10 shadow-sm outline-none focus:ring-2 focus:ring-blue-600/30" title={selectedCandidate.email}>
                                     <Mail size={18} />
                                 </a>
-                                <a href={`https://${selectedCandidate.linkedin}`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center w-10 h-10 rounded-full bg-slate-50 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:bg-blue-50 dark:hover:bg-[#0a66c2]/10 hover:text-[#0a66c2] transition-colors border border-slate-200 dark:border-white/10 shadow-sm outline-none focus:ring-2 focus:ring-[#0a66c2]/30" title={selectedCandidate.linkedin}>
+                                <a href={selectedCandidate.linkedin || "#"} onClick={(e) => { if (!selectedCandidate.linkedin) { e.preventDefault(); alert("LinkedIn profile not provided by candidate."); } }} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center w-10 h-10 rounded-full bg-slate-50 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:bg-blue-50 dark:hover:bg-[#0a66c2]/10 hover:text-[#0a66c2] transition-colors border border-slate-200 dark:border-white/10 shadow-sm outline-none focus:ring-2 focus:ring-[#0a66c2]/30" title={selectedCandidate.linkedin || "LinkedIn Profile"}>
                                     <Linkedin size={18} />
                                 </a>
-                                <a href="#" className="flex items-center justify-center w-10 h-10 rounded-full bg-slate-50 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white transition-colors border border-slate-200 dark:border-white/10 shadow-sm outline-none focus:ring-2 focus:ring-slate-500/30" title="GitHub Profile">
-                                    <Github size={18} />
-                                </a>
-                                <a href="#" className="flex items-center justify-center w-10 h-10 rounded-full bg-slate-50 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white transition-colors border border-slate-200 dark:border-white/10 shadow-sm outline-none focus:ring-2 focus:ring-slate-500/30" title="Personal Website">
-                                    <Globe size={18} />
-                                </a>
+                                {selectedCandidate.github_url && (
+                                    <a href={selectedCandidate.github_url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center w-10 h-10 rounded-full bg-slate-50 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white transition-colors border border-slate-200 dark:border-white/10 shadow-sm outline-none focus:ring-2 focus:ring-slate-500/30" title="GitHub Profile">
+                                        <Github size={18} />
+                                    </a>
+                                )}
+                                {selectedCandidate.website_url && (
+                                    <a href={selectedCandidate.website_url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center w-10 h-10 rounded-full bg-slate-50 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white transition-colors border border-slate-200 dark:border-white/10 shadow-sm outline-none focus:ring-2 focus:ring-slate-500/30" title="Personal Website">
+                                        <Globe size={18} />
+                                    </a>
+                                )}
+                                {selectedCandidate.twitter_url && (
+                                    <a href={selectedCandidate.twitter_url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center w-10 h-10 rounded-full bg-slate-50 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:bg-blue-50 dark:hover:bg-blue-400/10 hover:text-blue-400 transition-colors border border-slate-200 dark:border-white/10 shadow-sm outline-none focus:ring-2 focus:ring-blue-400/30" title="Twitter Profile">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
+                                    </a>
+                                )}
                             </div>
 
                             <div className="space-y-8">
@@ -696,6 +706,31 @@ function RecruiterDashboardContent() {
 
                                 <div>
                                     <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
+                                        <Code2 size={16} className="text-blue-600 dark:text-purple-500" /> Featured Projects
+                                    </h3>
+                                    <div className="space-y-4">
+                                        {selectedCandidate.projects && selectedCandidate.projects.length > 0 ? (
+                                            selectedCandidate.projects.map((project, idx) => (
+                                                <div key={idx} className="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5 hover:border-blue-200 dark:hover:border-purple-500/30 transition-colors group/proj">
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <h4 className="font-bold text-slate-900 dark:text-white text-sm">{project.name}</h4>
+                                                        {project.link && (
+                                                            <a href={project.link} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-blue-600 dark:hover:text-purple-400 transition-colors">
+                                                                <ExternalLink size={14} />
+                                                            </a>
+                                                        )}
+                                                    </div>
+                                                    <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed line-clamp-2">{project.description}</p>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <p className="text-sm text-slate-500 dark:text-slate-400 italic pl-2">No projects manually added.</p>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
                                         <GraduationCap size={16} className="text-blue-600 dark:text-purple-500" /> Simulated Experience
                                     </h3>
                                     <div className="relative pl-6 border-l-2 border-slate-200 dark:border-white/10 space-y-6">
@@ -719,7 +754,15 @@ function RecruiterDashboardContent() {
                         {/* Footer Actions */}
                         <div className="p-6 border-t border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-[#0B0E14]/50 flex gap-4 mt-auto">
                             <Link href="/recruiter/chat" className="flex-1">
-                                <button className="w-full py-3.5 rounded-xl bg-white dark:bg-[#1C2128] text-slate-700 dark:text-white text-sm font-bold hover:bg-slate-100 dark:hover:bg-white/5 border border-slate-200 dark:border-white/10 transition-colors shadow-sm">
+                                <button
+                                    onClick={() => {
+                                        if (selectedCandidate) {
+                                            localStorage.setItem("recruiter_chat_botId", selectedCandidate.id);
+                                            localStorage.setItem("recruiter_chat_botName", selectedCandidate.name);
+                                        }
+                                    }}
+                                    className="w-full py-3.5 rounded-xl bg-white dark:bg-[#1C2128] text-slate-700 dark:text-white text-sm font-bold hover:bg-slate-100 dark:hover:bg-white/5 border border-slate-200 dark:border-white/10 transition-colors shadow-sm"
+                                >
                                     Message Digital Twin
                                 </button>
                             </Link>

@@ -51,18 +51,19 @@ export default function RecruiterChatPage() {
     const [input, setInput] = useState("");
     const [isStreaming, setIsStreaming] = useState(false);
     const [liveBotId, setLiveBotId] = useState<string | null>(null);
+    const [botError, setBotError] = useState<string | null>(null);
     const chatEndRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         setMounted(true);
-        // Recruiter clicks "Chat" on a candidate card — the bot ID is stored in localStorage
         const storedBotId = localStorage.getItem("recruiter_chat_botId");
         const storedBotName = localStorage.getItem("recruiter_chat_botName");
-        if (storedBotId) {
-            setLiveBotId(storedBotId);
-            DEMO_CHATS[0].botId = storedBotId;
-            if (storedBotName) DEMO_CHATS[0].name = storedBotName;
-        }
+        if (!storedBotId) return;
+
+        // Trust the stored ID — errors are caught in sendMessage
+        setLiveBotId(storedBotId);
+        DEMO_CHATS[0].botId = storedBotId;
+        if (storedBotName) DEMO_CHATS[0].name = storedBotName;
     }, []);
 
     useEffect(() => {
@@ -89,7 +90,7 @@ export default function RecruiterChatPage() {
             if (!currentBotId) throw new Error("No bot selected. Click Chat on a candidate first.");
 
             const res = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1"}/bots/${currentBotId}/chat/stream`,
+                `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/v1/bots/${currentBotId}/chat/stream`,
                 {
                     method: "POST",
                     headers: {
@@ -100,7 +101,20 @@ export default function RecruiterChatPage() {
                 }
             );
 
-            if (!res.ok || !res.body) throw new Error(`Server error: ${res.status}`);
+            if (!res.ok || !res.body) {
+                if (res.status === 404) {
+                    localStorage.removeItem("recruiter_chat_botId");
+                    localStorage.removeItem("recruiter_chat_botName");
+                    setLiveBotId(null);
+                    DEMO_CHATS[0].botId = null;
+                    setBotError("Bot not found. Please go back and click Chat on a candidate.");
+                    throw new Error("Bot not found. Please go back and select a candidate.");
+                }
+                if (res.status === 401 || res.status === 403) {
+                    throw new Error("Authentication error. Please log out and log back in.");
+                }
+                throw new Error(`Server error: ${res.status}`);
+            }
 
             const reader = res.body.getReader();
             const decoder = new TextDecoder();
@@ -188,6 +202,15 @@ export default function RecruiterChatPage() {
 
             {/* Main Chat Area */}
             <main className="flex-1 flex flex-col min-w-0 bg-[#F8FAFC] dark:bg-[#0B0E14] relative">
+                {/* Bot Error Banner */}
+                {botError && (
+                    <div className="bg-red-50 dark:bg-red-500/10 border-b border-red-200 dark:border-red-500/20 px-6 py-3 flex items-center justify-between gap-4">
+                        <p className="text-sm text-red-700 dark:text-red-400 font-medium">{botError}</p>
+                        <Link href="/recruiter" className="shrink-0 text-xs font-bold text-red-700 dark:text-red-400 underline hover:no-underline">
+                            Go back to Candidates
+                        </Link>
+                    </div>
+                )}
                 {/* Chat Header */}
                 <header className="h-20 border-b border-slate-200 dark:border-white/10 flex items-center justify-between px-6 bg-white/80 dark:bg-[#1C2128]/80 backdrop-blur-md sticky top-0 z-20">
                     <div className="flex items-center gap-4">

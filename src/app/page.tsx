@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Check, User } from "lucide-react";
+import Link from "next/link";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
 import { DotPatternLogo } from "@/components/ui/dot-pattern-logo";
@@ -124,12 +125,16 @@ export default function LandingPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.7, duration: 0.8 }}
               >
-                <button className="bg-blue-600 hover:bg-blue-700 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-white px-12 py-5 rounded-full font-semibold text-[18px] hover:scale-105 transition-all duration-300 shadow-[0_0_40px_rgba(37,99,235,0.3)] dark:shadow-[0_0_40px_rgba(79,70,229,0.4)] relative z-20">
-                  Deploy Your AI Twin
-                </button>
-                <button className="bg-slate-100/50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white px-12 py-5 rounded-full font-semibold text-[18px] hover:bg-slate-200/50 dark:hover:bg-white/10 hover:border-blue-300 dark:hover:border-indigo-400/50 transition-all duration-300 backdrop-blur-md relative z-20">
-                  Request Demo
-                </button>
+                <Link href="/role-selection">
+                  <button className="bg-blue-600 hover:bg-blue-700 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-white px-12 py-5 rounded-full font-semibold text-[18px] hover:scale-105 transition-all duration-300 shadow-[0_0_40px_rgba(37,99,235,0.3)] dark:shadow-[0_0_40px_rgba(79,70,229,0.4)] relative z-20">
+                    Deploy Your AI Twin
+                  </button>
+                </Link>
+                <Link href="/role-selection">
+                  <button className="bg-slate-100/50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white px-12 py-5 rounded-full font-semibold text-[18px] hover:bg-slate-200/50 dark:hover:bg-white/10 hover:border-blue-300 dark:hover:border-indigo-400/50 transition-all duration-300 backdrop-blur-md relative z-20">
+                    Request Demo
+                  </button>
+                </Link>
               </motion.div>
             </div>
           }
@@ -436,12 +441,16 @@ export default function LandingPage() {
             to navigate the future of recruitment.
           </p>
           <div className="pt-10 flex flex-col sm:flex-row items-center justify-center gap-6">
-            <button className="bg-slate-900 dark:bg-white text-white dark:text-black px-12 py-5 rounded-full font-semibold text-[18px] hover:scale-105 transition-transform duration-300 shadow-[0_0_40px_rgba(0,0,0,0.1)] dark:shadow-[0_0_40px_rgba(255,255,255,0.15)]">
-              Create Your Instance
-            </button>
-            <button className="bg-slate-100/50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white px-12 py-5 rounded-full font-semibold text-[18px] hover:bg-slate-200/50 dark:hover:bg-white/10 transition-colors duration-300 backdrop-blur-md">
-              Talk to Sales
-            </button>
+            <Link href="/role-selection">
+              <button className="bg-slate-900 dark:bg-white text-white dark:text-black px-12 py-5 rounded-full font-semibold text-[18px] hover:scale-105 transition-transform duration-300 shadow-[0_0_40px_rgba(0,0,0,0.1)] dark:shadow-[0_0_40px_rgba(255,255,255,0.15)]">
+                Create Your Instance
+              </button>
+            </Link>
+            <Link href="/role-selection">
+              <button className="bg-slate-100/50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white px-12 py-5 rounded-full font-semibold text-[18px] hover:bg-slate-200/50 dark:hover:bg-white/10 transition-colors duration-300 backdrop-blur-md">
+                Talk to Sales
+              </button>
+            </Link>
           </div>
         </motion.div>
       </section>

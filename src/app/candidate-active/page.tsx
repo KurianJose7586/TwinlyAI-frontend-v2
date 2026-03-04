@@ -19,7 +19,8 @@ import {
     Plus,
     Check,
     Sun,
-    Moon
+    Moon,
+    X
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import api from "@/lib/api";
@@ -47,12 +48,23 @@ export default function CandidateActiveDashboard() {
     // --- Dashboard form state ---
     const [agentName, setAgentName] = React.useState("");
     const [agentBio, setAgentBio] = React.useState("");
-    const originalAgentState = React.useRef({ name: "", bio: "" });
+    const [githubUrl, setGithubUrl] = React.useState("");
+    const [twitterUrl, setTwitterUrl] = React.useState("");
+    const [websiteUrl, setWebsiteUrl] = React.useState("");
+    const [linkedinUrl, setLinkedinUrl] = React.useState("");
+    const [projects, setProjects] = React.useState<any[]>([]);
+    const originalAgentState = React.useRef({ name: "", bio: "", githubUrl: "", twitterUrl: "", websiteUrl: "", linkedinUrl: "", projects: [] as any[] });
     const [isSaving, setIsSaving] = React.useState(false);
     const [saveSuccess, setSaveSuccess] = React.useState(false);
 
     const hasUnsavedChanges = () => {
-        return agentName !== originalAgentState.current.name || agentBio !== originalAgentState.current.bio;
+        return agentName !== originalAgentState.current.name ||
+            agentBio !== originalAgentState.current.bio ||
+            githubUrl !== originalAgentState.current.githubUrl ||
+            twitterUrl !== originalAgentState.current.twitterUrl ||
+            websiteUrl !== originalAgentState.current.websiteUrl ||
+            linkedinUrl !== originalAgentState.current.linkedinUrl ||
+            JSON.stringify(projects) !== JSON.stringify(originalAgentState.current.projects);
     };
 
     const safeTabChange = (newTab: string) => {
@@ -63,6 +75,11 @@ export default function CandidateActiveDashboard() {
             // Revert changes if discarded
             setAgentName(originalAgentState.current.name);
             setAgentBio(originalAgentState.current.bio);
+            setGithubUrl(originalAgentState.current.githubUrl);
+            setTwitterUrl(originalAgentState.current.twitterUrl);
+            setWebsiteUrl(originalAgentState.current.websiteUrl);
+            setLinkedinUrl(originalAgentState.current.linkedinUrl);
+            setProjects(originalAgentState.current.projects || []);
         }
         setActiveTab(newTab);
     };
@@ -94,31 +111,75 @@ export default function CandidateActiveDashboard() {
         setAgentName(`${name} AI`);
         const initialBio = `I'm ${name.split(' ')[0]}'s AI twin. I represent their skills and career achievements. I should be articulate, helpful, and maintain professional ethics.`;
         setAgentBio(initialBio);
-        originalAgentState.current = { name: `${name} AI`, bio: initialBio };
+        originalAgentState.current = {
+            name: `${name} AI`,
+            bio: initialBio,
+            githubUrl: "",
+            twitterUrl: "",
+            websiteUrl: "",
+            linkedinUrl: "",
+            projects: []
+        };
     }, []);
 
     // Sync bot data from React Query
     React.useEffect(() => {
-        if (!botId && fetchedBots && fetchedBots.length > 0) {
+        if (fetchedBots && fetchedBots.length > 0) {
             const bot = fetchedBots[0];
             const realId = bot.id || bot._id;
-            localStorage.setItem("twinly_botId", realId);
-            localStorage.setItem("twinly_userName", bot.name);
-            setBotId(realId);
+
+            if (!botId) {
+                localStorage.setItem("twinly_botId", realId);
+                localStorage.setItem("twinly_userName", bot.name);
+                setBotId(realId);
+            }
+
             setUserName(bot.name);
             setAgentName(`${bot.name} AI`);
-            const initialBio = `I'm ${bot.name.split(' ')[0]}'s AI twin.`;
-            setAgentBio(initialBio);
-            originalAgentState.current = { name: `${bot.name} AI`, bio: initialBio };
+            setAgentBio(bot.summary || `I'm ${bot.name.split(' ')[0]}'s AI twin.`);
+            setGithubUrl(bot.github_url || "");
+            setTwitterUrl(bot.twitter_url || "");
+            setWebsiteUrl(bot.website_url || "");
+            setLinkedinUrl(bot.linkedin_url || "");
+            setProjects(bot.projects || []);
+
+            originalAgentState.current = {
+                name: `${bot.name} AI`,
+                bio: bot.summary || `I'm ${bot.name.split(' ')[0]}'s AI twin.`,
+                githubUrl: bot.github_url || "",
+                twitterUrl: bot.twitter_url || "",
+                websiteUrl: bot.website_url || "",
+                linkedinUrl: bot.linkedin_url || "",
+                projects: bot.projects || []
+            };
         }
-    }, [botId, fetchedBots]);
+    }, [fetchedBots]);
 
     const handlePublishChanges = async () => {
         if (!botId) return;
         setIsSaving(true);
         try {
-            await updateBotMutation({ botId, data: { name: agentName.replace(" AI", "") } });
-            originalAgentState.current = { name: agentName, bio: agentBio };
+            await updateBotMutation({
+                botId,
+                data: {
+                    name: agentName.replace(" AI", ""),
+                    summary: agentBio,
+                    github_url: githubUrl,
+                    twitter_url: twitterUrl,
+                    website_url: websiteUrl,
+                    linkedin_url: linkedinUrl,
+                    projects: projects
+                }
+            });
+            originalAgentState.current = {
+                name: agentName,
+                bio: agentBio,
+                githubUrl: githubUrl,
+                twitterUrl: twitterUrl,
+                websiteUrl: websiteUrl,
+                linkedinUrl: linkedinUrl,
+                projects: projects
+            };
             setSaveSuccess(true);
             setTimeout(() => setSaveSuccess(false), 2500);
         } catch (e) {
@@ -289,10 +350,10 @@ export default function CandidateActiveDashboard() {
                                 <p className="text-xs text-slate-400 dark:text-slate-500 px-2 mt-0.5 truncate">{user?.email}</p>
                             </div>
                             <div className="p-1">
-                                <button className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-colors">
+                                <button onClick={() => alert("Candidate profile view is coming soon.")} className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-colors">
                                     View Profile
                                 </button>
-                                <button className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-colors">
+                                <button onClick={() => alert("Subscription and billing management coming soon.")} className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-colors">
                                     Billing &amp; Plans
                                 </button>
                                 <div className="h-px bg-slate-100 dark:bg-white/5 my-1" />
@@ -336,7 +397,7 @@ export default function CandidateActiveDashboard() {
                     </div>
                     {activeTab === 'dashboard' && (
                         <div className="flex items-center gap-3">
-                            <button className="px-5 py-2.5 rounded-full bg-white dark:bg-[#1C2128] border border-slate-200 dark:border-white/10 text-sm font-medium hover:bg-slate-50 dark:hover:bg-white/5 transition-all">
+                            <button onClick={() => alert("Public preview page coming soon.")} className="px-5 py-2.5 rounded-full bg-white dark:bg-[#1C2128] border border-slate-200 dark:border-white/10 text-sm font-medium hover:bg-slate-50 dark:hover:bg-white/5 transition-all">
                                 Preview Page
                             </button>
                             <button
@@ -397,6 +458,95 @@ export default function CandidateActiveDashboard() {
                                                     className="resize-none bg-white dark:bg-[#0B0E14] border border-slate-200 dark:border-white/10 rounded-2xl px-4 py-2.5 text-sm transition-all duration-200 focus:ring-2 focus:ring-[#007AFF]/20 focus:border-[#007AFF] outline-none text-slate-900 dark:text-white"
                                                 />
                                             </div>
+
+                                            {/* --- Social Links --- */}
+                                            <div className="pt-4 border-t border-slate-100 dark:border-white/5">
+                                                <h4 className="text-[13px] font-bold text-slate-400 uppercase tracking-wider mb-4">Professional Presence</h4>
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <div className="flex flex-col">
+                                                        <label className="text-[11px] font-bold text-slate-400 mb-1 ml-1">LinkedIn URL</label>
+                                                        <input type="url" value={linkedinUrl} onChange={e => setLinkedinUrl(e.target.value)}
+                                                            className="bg-white dark:bg-[#0B0E14] border border-slate-200 dark:border-white/10 rounded-xl px-3 py-2 text-sm transition-all focus:ring-2 focus:ring-[#007AFF]/20 focus:border-[#007AFF] outline-none" />
+                                                    </div>
+                                                    <div className="flex flex-col">
+                                                        <label className="text-[11px] font-bold text-slate-400 mb-1 ml-1">GitHub URL</label>
+                                                        <input type="url" value={githubUrl} onChange={e => setGithubUrl(e.target.value)}
+                                                            className="bg-white dark:bg-[#0B0E14] border border-slate-200 dark:border-white/10 rounded-xl px-3 py-2 text-sm transition-all focus:ring-2 focus:ring-[#007AFF]/20 focus:border-[#007AFF] outline-none" />
+                                                    </div>
+                                                    <div className="flex flex-col">
+                                                        <label className="text-[11px] font-bold text-slate-400 mb-1 ml-1">Twitter (X) URL</label>
+                                                        <input type="url" value={twitterUrl} onChange={e => setTwitterUrl(e.target.value)}
+                                                            className="bg-white dark:bg-[#0B0E14] border border-slate-200 dark:border-white/10 rounded-xl px-3 py-2 text-sm transition-all focus:ring-2 focus:ring-[#007AFF]/20 focus:border-[#007AFF] outline-none" />
+                                                    </div>
+                                                    <div className="flex flex-col">
+                                                        <label className="text-[11px] font-bold text-slate-400 mb-1 ml-1">Personal Website</label>
+                                                        <input type="url" value={websiteUrl} onChange={e => setWebsiteUrl(e.target.value)}
+                                                            className="bg-white dark:bg-[#0B0E14] border border-slate-200 dark:border-white/10 rounded-xl px-3 py-2 text-sm transition-all focus:ring-2 focus:ring-[#007AFF]/20 focus:border-[#007AFF] outline-none" />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </section>
+
+                                    {/* Projects Management */}
+                                    <section className="bg-white/80 dark:bg-[#1C2128]/80 backdrop-blur-md border border-slate-200 dark:border-white/10 shadow-sm rounded-3xl p-8">
+                                        <div className="flex items-center justify-between mb-8">
+                                            <div className="flex items-center gap-3">
+                                                <Terminal className="text-[#007AFF]" size={24} />
+                                                <h3 className="text-lg font-semibold">Featured Projects</h3>
+                                            </div>
+                                            <button
+                                                onClick={() => setProjects([...projects, { name: "", description: "", link: "" }])}
+                                                className="text-[#007AFF] hover:bg-[#007AFF]/10 p-2 rounded-full transition-colors"
+                                                title="Add Project"
+                                            >
+                                                <Plus size={20} />
+                                            </button>
+                                        </div>
+
+                                        <div className="space-y-6">
+                                            {projects.length === 0 ? (
+                                                <p className="text-sm text-slate-400 text-center py-4 italic">No projects added yet.</p>
+                                            ) : projects.map((proj, idx) => (
+                                                <div key={idx} className="relative bg-slate-50 dark:bg-[#0B0E14]/50 p-5 rounded-2xl border border-slate-200 dark:border-white/5 group/proj">
+                                                    <button
+                                                        onClick={() => setProjects(projects.filter((_, i) => i !== idx))}
+                                                        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover/proj:opacity-100 transition-opacity shadow-lg"
+                                                    >
+                                                        <X size={12} />
+                                                    </button>
+                                                    <div className="space-y-4">
+                                                        <input
+                                                            placeholder="Project Name"
+                                                            value={proj.name}
+                                                            onChange={e => {
+                                                                const newProjs = [...projects];
+                                                                newProjs[idx].name = e.target.value;
+                                                                setProjects(newProjs);
+                                                            }}
+                                                            className="w-full bg-transparent border-b border-slate-200 dark:border-white/10 py-1 font-bold text-sm focus:border-[#007AFF] outline-none" />
+                                                        <input
+                                                            placeholder="Link (github.com/...)"
+                                                            value={proj.link}
+                                                            onChange={e => {
+                                                                const newProjs = [...projects];
+                                                                newProjs[idx].link = e.target.value;
+                                                                setProjects(newProjs);
+                                                            }}
+                                                            className="w-full bg-transparent border-b border-slate-200 dark:border-white/10 py-1 text-xs focus:border-[#007AFF] outline-none" />
+                                                        <textarea
+                                                            placeholder="Description"
+                                                            rows={2}
+                                                            value={proj.description}
+                                                            onChange={e => {
+                                                                const newProjs = [...projects];
+                                                                newProjs[idx].description = e.target.value;
+                                                                setProjects(newProjs);
+                                                            }}
+                                                            className="w-full bg-transparent border-b border-slate-200 dark:border-white/10 py-1 text-xs focus:border-[#007AFF] outline-none resize-none" />
+                                                    </div>
+                                                </div>
+                                            ))}
                                         </div>
                                     </section>
 
@@ -660,7 +810,7 @@ export default function CandidateActiveDashboard() {
                                                 <h4 className="font-semibold text-sm text-slate-900 dark:text-white">Email Alerts</h4>
                                                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Receive an email when a recruiter interacts securely.</p>
                                             </div>
-                                            <div className="w-11 h-6 bg-green-500 rounded-full relative cursor-pointer shadow-inner">
+                                            <div onClick={() => alert("Email alerts configuration coming soon.")} className="w-11 h-6 bg-green-500 rounded-full relative cursor-pointer shadow-inner">
                                                 <div className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full shadow-sm"></div>
                                             </div>
                                         </div>
@@ -669,7 +819,7 @@ export default function CandidateActiveDashboard() {
                                                 <h4 className="font-semibold text-sm text-slate-900 dark:text-white">Weekly Digest</h4>
                                                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Summary report of profile analytics.</p>
                                             </div>
-                                            <div className="w-11 h-6 bg-slate-300 dark:bg-slate-700 rounded-full relative cursor-pointer shadow-inner">
+                                            <div onClick={() => alert("Weekly digest configuration coming soon.")} className="w-11 h-6 bg-slate-300 dark:bg-slate-700 rounded-full relative cursor-pointer shadow-inner">
                                                 <div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full shadow-sm"></div>
                                             </div>
                                         </div>

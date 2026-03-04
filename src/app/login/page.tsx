@@ -46,7 +46,7 @@ function LoginForm() {
         if (token) {
             setAuthFromToken(token);
             // Clear the token from URL cleanly
-            router.replace("/candidate-active");
+            router.replace("/login");
         }
     }, [searchParams, setAuthFromToken, router]);
 
@@ -184,8 +184,8 @@ function LoginForm() {
                                     onBlur={(e) => validateEmail(e.target.value)}
                                     required
                                     className={`w-full bg-slate-50 dark:bg-[#1C2128] border text-slate-900 dark:text-[#F9FAFB] pl-12 pr-6 py-4 rounded-2xl focus:outline-none focus:ring-2 transition-all placeholder:text-slate-400 dark:placeholder:text-[#57606A] ${emailError
-                                            ? "border-red-400 focus:ring-red-500/20 focus:border-red-500"
-                                            : "border-slate-200 dark:border-white/10 focus:ring-blue-500/10 dark:focus:ring-purple-500/20 focus:border-blue-500 dark:focus:border-purple-400"
+                                        ? "border-red-400 focus:ring-red-500/20 focus:border-red-500"
+                                        : "border-slate-200 dark:border-white/10 focus:ring-blue-500/10 dark:focus:ring-purple-500/20 focus:border-blue-500 dark:focus:border-purple-400"
                                         }`}
                                 />
                             </div>
@@ -254,8 +254,8 @@ function LoginForm() {
                 </div>
 
                 <div className="mt-8 flex justify-center items-center gap-6 text-[10px] uppercase tracking-[0.2em] text-slate-300 dark:text-white/20 font-medium flex-wrap">
-                    <Link href="#" className="hover:text-white dark:hover:text-white/40 transition-colors">Privacy Policy</Link>
-                    <Link href="#" className="hover:text-white dark:hover:text-white/40 transition-colors">Terms of Service</Link>
+                    <button onClick={() => alert("Privacy Policy coming soon.")} className="hover:text-white dark:hover:text-white/40 transition-colors bg-transparent border-0 p-0 cursor-pointer uppercase tracking-widest font-medium">Privacy Policy</button>
+                    <button onClick={() => alert("Terms of Service coming soon.")} className="hover:text-white dark:hover:text-white/40 transition-colors bg-transparent border-0 p-0 cursor-pointer uppercase tracking-widest font-medium">Terms of Service</button>
                     <span>© 2025 TwinlyAI</span>
                 </div>
             </main >

@@ -29,26 +29,26 @@ export function Footer() {
                     <h4 className="text-[12px] font-bold text-[var(--text-main)] uppercase tracking-widest">Solutions</h4>
                     <ul className="text-[14px] text-[var(--text-muted)] space-y-3 font-medium">
                         <li><Link className="hover:text-[var(--brand-purple)] transition-colors" href="/solutions">For Recruiters</Link></li>
-                        <li><Link className="hover:text-[var(--brand-purple)] transition-colors" href="#">For Candidates</Link></li>
-                        <li><Link className="hover:text-[var(--brand-purple)] transition-colors" href="#">API Access</Link></li>
+                        <li><Link className="hover:text-[var(--brand-purple)] transition-colors" href="/role-selection">For Candidates</Link></li>
+                        <li><Link className="hover:text-[var(--brand-purple)] transition-colors" href="/role-selection">API Access</Link></li>
                     </ul>
                 </div>
 
                 <div className="space-y-6">
                     <h4 className="text-[12px] font-bold text-[var(--text-main)] uppercase tracking-widest">Resources</h4>
                     <ul className="text-[14px] text-[var(--text-muted)] space-y-3 font-medium">
-                        <li><Link className="hover:text-[var(--brand-purple)] transition-colors" href="#">Documentation</Link></li>
+                        <li><button className="hover:text-[var(--brand-purple)] transition-colors text-left" onClick={() => alert("Documentation coming soon.")}>Documentation</button></li>
                         <li><Link className="hover:text-[var(--brand-purple)] transition-colors" href="/pricing">Pricing</Link></li>
-                        <li><Link className="hover:text-[var(--brand-purple)] transition-colors" href="#">Security</Link></li>
+                        <li><button className="hover:text-[var(--brand-purple)] transition-colors text-left" onClick={() => alert("Security whitepaper coming soon.")}>Security</button></li>
                     </ul>
                 </div>
 
                 <div className="space-y-6">
                     <h4 className="text-[12px] font-bold text-[var(--text-main)] uppercase tracking-widest">Support</h4>
                     <ul className="text-[14px] text-[var(--text-muted)] space-y-3 font-medium">
-                        <li><Link className="hover:text-[var(--brand-purple)] transition-colors" href="#">Help Center</Link></li>
-                        <li><Link className="hover:text-[var(--brand-purple)] transition-colors" href="#">Contact Us</Link></li>
-                        <li><Link className="hover:text-[var(--brand-purple)] transition-colors" href="#">Privacy Policy</Link></li>
+                        <li><button className="hover:text-[var(--brand-purple)] transition-colors text-left" onClick={() => alert("Help Center coming soon.")}>Help Center</button></li>
+                        <li><button className="hover:text-[var(--brand-purple)] transition-colors text-left" onClick={() => alert("Contact form coming soon.")}>Contact Us</button></li>
+                        <li><button className="hover:text-[var(--brand-purple)] transition-colors text-left" onClick={() => alert("Privacy Policy coming soon.")}>Privacy Policy</button></li>
                     </ul>
                 </div>
             </div>
@@ -60,15 +60,15 @@ export function Footer() {
                     <span className="text-[10px] uppercase tracking-[0.2em] font-medium opacity-70">Designed in Lajpat Nagar</span>
                 </div>
                 <div className="flex gap-6">
-                    <Link className="hover:text-[var(--brand-purple)] transition-colors" href="#">
+                    <Link className="hover:text-[var(--brand-purple)] transition-colors" href="https://twitter.com/twinlyai">
                         <Twitter className="w-5 h-5" />
                         <span className="sr-only">Twitter</span>
                     </Link>
-                    <Link className="hover:text-[var(--brand-purple)] transition-colors" href="#">
+                    <Link className="hover:text-[var(--brand-purple)] transition-colors" href="https://linkedin.com/company/twinlyai">
                         <Linkedin className="w-5 h-5" />
                         <span className="sr-only">LinkedIn</span>
                     </Link>
-                    <Link className="hover:text-[var(--brand-purple)] transition-colors" href="#">
+                    <Link className="hover:text-[var(--brand-purple)] transition-colors" href="https://github.com/twinlyai">
                         <Github className="w-5 h-5" />
                         <span className="sr-only">GitHub</span>
                     </Link>
