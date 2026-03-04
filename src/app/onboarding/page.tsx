@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
@@ -71,6 +71,14 @@ type FormData = {
 };
 
 export default function OnboardingWizard() {
+    return (
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-[#0B0E14]"><Sparkles className="animate-pulse w-8 h-8 text-blue-600 dark:text-purple-500" /></div>}>
+            <OnboardingWizardForm />
+        </Suspense>
+    );
+}
+
+function OnboardingWizardForm() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const role = searchParams.get("role") || "candidate";

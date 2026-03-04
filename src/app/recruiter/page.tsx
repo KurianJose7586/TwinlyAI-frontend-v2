@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { createPortal } from "react-dom";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
     Search,
     Bell,
@@ -45,6 +46,9 @@ import { useTheme } from "next-themes";
 import { Footer } from "@/components/layout/footer";
 import api from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import { useUserProfile } from "@/hooks/useUser";
+import { useSearchCandidates, useCandidates } from "@/hooks/useCandidates";
+import { Candidate } from "@/types";
 
 const AVATARS = [
     "https://api.dicebear.com/7.x/notionists/svg?seed=Felix&backgroundColor=e2e8f0",
@@ -55,59 +59,6 @@ const AVATARS = [
     "https://api.dicebear.com/7.x/notionists/svg?seed=Sophia&backgroundColor=fca5a5"
 ];
 
-const MOCK_CANDIDATES = [
-    {
-        id: "1",
-        name: "Sarah Jenkins",
-        role: "AI Infrastructure Lead",
-        email: "email@example.com",
-        linkedin: "linkedin.com/in/ai-infra-lead",
-        quote: "Expert in PyTorch; optimized inference by 40% at previous role.",
-        match: 98,
-        matchStyle: "bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-400 border-green-200 dark:border-green-500/20",
-        avatar: AVATARS[1],
-        skills: ["PyTorch", "Kubernetes", "CUDA"]
-    },
-    {
-        id: "2",
-        name: "Marcus Vane",
-        role: "Data Engineering Architect",
-        email: "data.arch@example.com",
-        linkedin: "linkedin.com/in/data-arch",
-        quote: "Built scalable RAG pipelines for Fortune 500. Specializing in vector DBs.",
-        match: 85,
-        matchStyle: "bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-500/20",
-        avatar: AVATARS[2],
-        skills: ["Pinecone", "Spark", "Python"]
-    },
-    {
-        id: "3",
-        name: "Elena Rodriguez",
-        role: "LLM Product Engineer",
-        email: "llm.prod@example.com",
-        linkedin: "linkedin.com/in/llm-prod",
-        quote: "Specializes in prompt engineering and RAG. Redesigning UX for AI-first apps.",
-        match: 92,
-        matchStyle: "bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-400 border-green-200 dark:border-green-500/20",
-        avatar: AVATARS[3],
-        skills: ["LangChain", "React", "OpenAI"]
-    },
-    {
-        id: "4",
-        name: "David Chen",
-        role: "Full-Stack AI Developer",
-        email: "fullstack.dev@example.com",
-        linkedin: "linkedin.com/in/fullstack-dev",
-        quote: "Transitioning to AI workflows. Expert in FastAPI and high-load AWS deployments.",
-        match: 79,
-        matchStyle: "bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-white/10",
-        avatar: AVATARS[4],
-        skills: ["FastAPI", "AWS", "Next.js"]
-    }
-];
-
-// Duplicate the array to have 36 candidates total (3 pages of 12)
-const EXTENDED_CANDIDATES = Array(9).fill(MOCK_CANDIDATES).flat().map((c, i) => ({ ...c, id: `${c.id}_${i}` }));
 
 // Helper to generate deterministic but varied doodles based on candidate property
 const DOODLE_ICONS = [Sparkles, Code2, Zap, Brain, Target, Rocket, Lightbulb, Coffee, Terminal, Cpu, Database, Network];
@@ -157,19 +108,47 @@ const generateDoodles = (seedString: string) => {
     );
 };
 
-type Candidate = typeof MOCK_CANDIDATES[0];
+const CandidateSkeleton = () => (
+    <div className="bg-white dark:bg-[#1C2128] rounded-2xl border border-slate-200 dark:border-white/10 p-6 shadow-sm flex flex-col relative overflow-hidden animate-pulse h-[400px]">
+        <div className="flex justify-between items-start mb-4">
+            <div className="w-14 h-14 rounded-full bg-slate-200 dark:bg-white/10"></div>
+            <div className="w-20 h-6 rounded-full bg-slate-200 dark:bg-white/10"></div>
+        </div>
+        <div className="flex-1 space-y-3">
+            <div className="h-5 bg-slate-200 dark:bg-white/10 rounded w-3/4"></div>
+            <div className="h-4 bg-slate-200 dark:bg-white/10 rounded w-1/2 mb-4"></div>
+            <div className="h-4 bg-slate-200 dark:bg-white/10 rounded w-1/3 mb-2"></div>
+            <div className="h-4 bg-slate-200 dark:bg-white/10 rounded w-2/3 mb-4"></div>
+            <div className="h-16 bg-slate-200 dark:bg-white/10 rounded-xl mb-4 mt-2"></div>
+            <div className="flex gap-2">
+                <div className="h-5 w-16 bg-slate-200 dark:bg-white/10 rounded"></div>
+                <div className="h-5 w-16 bg-slate-200 dark:bg-white/10 rounded"></div>
+            </div>
+        </div>
+        <div className="flex gap-2 mt-6">
+            <div className="h-9 flex-1 bg-slate-200 dark:bg-white/10 rounded-lg"></div>
+            <div className="h-9 flex-1 bg-slate-200 dark:bg-white/10 rounded-lg"></div>
+        </div>
+    </div>
+);
 
-export default function RecruiterDashboard() {
-    const { user, logout } = useAuth();
+function RecruiterDashboardContent() {
+    const { logout } = useAuth();
     const { setTheme, resolvedTheme } = useTheme();
+    const { data: userProfile } = useUserProfile();
+    const router = useRouter();
+    const searchParams = useSearchParams();
+
     const [currentPage, setCurrentPage] = useState(1);
     const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
     const [mounted, setMounted] = useState(false);
 
+    const { mutateAsync: searchCandidates, isPending: isSearching } = useSearchCandidates();
+    const { data: initialCandidatesData, isLoading: isLoadingInitial } = useCandidates();
+
     // Search state
     const [searchQuery, setSearchQuery] = useState("");
     const [searchResults, setSearchResults] = useState<Candidate[] | null>(null);
-    const [isSearching, setIsSearching] = useState(false);
     const [searchError, setSearchError] = useState<string | null>(null);
 
     // Header dropdown states
@@ -184,10 +163,55 @@ export default function RecruiterDashboard() {
         return () => clearTimeout(timeout);
     }, []);
 
-    // Use real results if a search was done, else show mock candidates
+    // Format backend data into Candidate UI interface
+    const formatCandidates = (rawData: any[]): Candidate[] => {
+        if (!rawData) return [];
+        return rawData.map((r, i) => ({
+            id: r.id,
+            name: r.name,
+            role: r.summary?.split('.')[0] || "AI Professional",
+            email: "", // Not returned yet by backend
+            linkedin: "",
+            quote: r.summary || "No summary available.",
+            match: r.match_score > 0 ? r.match_score : Math.max(70, 99 - i * 3),
+            matchStyle: i === 0
+                ? "bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-400 border-green-200 dark:border-green-500/20"
+                : "bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-500/20",
+            avatar: AVATARS[i % AVATARS.length],
+            skills: r.skills,
+            resume_url: r.resume_url,
+            thumbnail_url: r.thumbnail_url
+        }));
+    };
+
+    // Use search results if available, otherwise fallback to initially loaded candidates
     const displayCandidates: Candidate[] = searchResults !== null
         ? searchResults
-        : EXTENDED_CANDIDATES;
+        : formatCandidates(initialCandidatesData || []);
+
+    const candidateIdParam = searchParams?.get('candidate');
+
+    useEffect(() => {
+        if (!mounted || isLoadingInitial) return;
+        if (candidateIdParam && displayCandidates.length > 0) {
+            const candidate = displayCandidates.find(c => c.id === candidateIdParam);
+            if (candidate) {
+                setSelectedCandidate(candidate);
+            }
+        } else if (!candidateIdParam) {
+            setSelectedCandidate(null);
+        }
+    }, [candidateIdParam, displayCandidates, isLoadingInitial, mounted]);
+
+    const openCandidateModal = (candidate: Candidate) => {
+        setSelectedCandidate(candidate);
+        router.push(`/recruiter?candidate=${candidate.id}`, { scroll: false });
+    };
+
+    const closeCandidateModal = () => {
+        setSelectedCandidate(null);
+        router.push('/recruiter', { scroll: false });
+    };
 
     const totalPages = Math.ceil(displayCandidates.length / ITEMS_PER_PAGE);
     const indexOfLastCandidate = currentPage * ITEMS_PER_PAGE;
@@ -201,51 +225,32 @@ export default function RecruiterDashboard() {
         }
     };
 
-    const handleSearch = async (e?: React.FormEvent) => {
-        if (e) e.preventDefault();
-        if (!searchQuery.trim()) {
+    const performSearch = async (query: string) => {
+        if (!query.trim()) {
             setSearchResults(null);
             return;
         }
-        setIsSearching(true);
         setSearchError(null);
         setCurrentPage(1);
         try {
-            const res = await api.post("/recruiter/search", { query: searchQuery });
-            // Map backend results to the candidate shape the UI expects
-            const mapped: Candidate[] = (res.data as Array<{
-                id: string;
-                name: string;
-                skills: string[];
-                summary: string;
-                match_score: number;
-            }>).map((r, i) => ({
-                id: r.id,
-                name: r.name,
-                role: r.summary?.split('.')[0] || "AI Professional",
-                email: "",
-                linkedin: "",
-                quote: r.summary || "No summary available.",
-                match: r.match_score > 0 ? r.match_score : Math.max(70, 99 - i * 3),
-                matchStyle: i === 0
-                    ? "bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-400 border-green-200 dark:border-green-500/20"
-                    : "bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-500/20",
-                avatar: AVATARS[i % AVATARS.length],
-                skills: r.skills,
-            }));
+            const rawData = await searchCandidates(query);
+            const mapped = formatCandidates(rawData);
             setSearchResults(mapped.length > 0 ? mapped : []);
         } catch (err: unknown) {
             const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-            // Recruiters see a 403 if they're not logged in as recruiter — fall back to mocks
             if ((err as { response?: { status?: number } })?.response?.status === 403) {
-                setSearchError("Recruiter account required. Showing sample results.");
-                setSearchResults(null);
+                setSearchError("Recruiter account required to perform searches.");
+                setSearchResults([]);
             } else {
-                setSearchError(detail || "Search failed. Showing sample results.");
-                setSearchResults(null);
+                setSearchError(detail || "Search failed.");
+                setSearchResults([]);
             }
         }
-        setIsSearching(false);
+    };
+
+    const handleSearch = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        await performSearch(searchQuery);
     };
 
     const clearSearch = () => {
@@ -381,8 +386,8 @@ export default function RecruiterDashboard() {
                                         <img src={AVATARS[0]} alt="Avatar" className="w-full h-full object-cover" />
                                     </div>
                                     <div>
-                                        <p className="text-sm font-bold text-slate-900 dark:text-white">{user?.email?.split('@')[0] || "Recruiter"}</p>
-                                        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">{user?.email || "recruiter@twinly.ai"}</p>
+                                        <p className="text-sm font-bold text-slate-900 dark:text-white">{userProfile?.email?.split('@')[0] || "Recruiter"}</p>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">{userProfile?.email || "recruiter@twinly.ai"}</p>
                                     </div>
                                 </div>
                                 <div className="p-2">
@@ -447,76 +452,119 @@ export default function RecruiterDashboard() {
                     )}
 
                     <div className="flex gap-2 mt-6 justify-center overflow-x-auto pb-2 scrollbar-none">
-                        <span className="px-4 py-1.5 bg-white dark:bg-[#1C2128] border border-slate-200 dark:border-white/10 rounded-full text-xs font-semibold flex items-center gap-2 shadow-sm text-slate-900 dark:text-white">
-                            Python <X size={14} className="cursor-pointer text-slate-400 hover:text-slate-900 dark:hover:text-white" />
-                        </span>
-                        <span className="px-4 py-1.5 bg-white dark:bg-[#1C2128] border border-slate-200 dark:border-white/10 rounded-full text-xs font-semibold flex items-center gap-2 shadow-sm text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 cursor-pointer transition-colors">
-                            Machine Learning <ChevronDown size={14} />
-                        </span>
-                        <span className="px-4 py-1.5 bg-blue-50 dark:bg-purple-500/10 border border-blue-200 dark:border-purple-500/20 rounded-full text-xs font-semibold flex items-center gap-2 shadow-sm text-blue-700 dark:text-purple-400 cursor-pointer">
-                            Remote <ChevronDown size={14} />
-                        </span>
-                        <span className="px-4 py-1.5 bg-white dark:bg-[#1C2128] border border-slate-200 dark:border-white/10 rounded-full text-xs font-semibold flex items-center gap-2 shadow-sm text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 cursor-pointer transition-colors">
-                            Senior Level <ChevronDown size={14} />
-                        </span>
+                        {["Python", "Machine Learning", "Remote", "Senior Level"].map(chip => (
+                            <button
+                                key={chip}
+                                onClick={() => {
+                                    setSearchQuery(chip);
+                                    performSearch(chip);
+                                }}
+                                className={`px-4 py-1.5 rounded-full text-xs font-semibold flex items-center gap-2 shadow-sm transition-colors cursor-pointer border ${searchQuery.toLowerCase() === chip.toLowerCase()
+                                    ? "bg-blue-50 dark:bg-purple-500/10 border-blue-200 dark:border-purple-500/20 text-blue-700 dark:text-purple-400"
+                                    : "bg-white dark:bg-[#1C2128] border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5"
+                                    }`}
+                            >
+                                {chip}
+                            </button>
+                        ))}
                     </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {currentCandidates.map((candidate) => (
-                        <div key={candidate.id} onClick={() => setSelectedCandidate(candidate)} className="bg-white dark:bg-[#1C2128] rounded-2xl border border-slate-200 dark:border-white/10 p-6 shadow-sm hover:shadow-md dark:shadow-none dark:hover:border-white/20 transition-all group flex flex-col relative overflow-hidden cursor-pointer">
-                            <div className="flex justify-between items-start mb-4">
-                                <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-slate-100 dark:border-white/10 bg-slate-100 dark:bg-[#0B0E14]">
-                                    <img src={candidate.avatar} alt={candidate.name} className="w-full h-full object-cover" />
+                    {(isLoadingInitial || (isSearching && searchResults === null)) ? (
+                        Array.from({ length: 8 }).map((_, i) => <CandidateSkeleton key={i} />)
+                    ) : (
+                        currentCandidates.map((candidate) => (
+                            <div key={candidate.id} onClick={() => openCandidateModal(candidate)} className="bg-white dark:bg-[#1C2128] rounded-2xl border border-slate-200 dark:border-white/10 p-6 shadow-sm hover:shadow-md dark:shadow-none hover:border-blue-500/30 dark:hover:border-purple-500/50 transition-all group flex flex-col relative overflow-hidden cursor-pointer">
+                                <div className="flex justify-between items-start mb-4">
+                                    <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-slate-100 dark:border-white/10 bg-slate-100 dark:bg-[#0B0E14] relative z-10">
+                                        <img src={candidate.avatar} alt={candidate.name} className="w-full h-full object-cover" />
+                                    </div>
+                                    {candidate.thumbnail_url && (
+                                        <div className="absolute right-0 top-0 w-24 h-32 opacity-20 group-hover:opacity-40 transition-opacity pointer-events-none rotate-12 translate-x-4 -translate-y-4">
+                                            <img
+                                                src={candidate.thumbnail_url}
+                                                alt="Resume Preview"
+                                                className="w-full h-full object-cover rounded-lg shadow-2xl border border-white/20"
+                                            />
+                                        </div>
+                                    )}
+                                    <div className={`px-2.5 py-1 text-[11px] font-bold rounded-full border ${candidate.matchStyle}`}>
+                                        {candidate.match}% MATCH
+                                    </div>
                                 </div>
-                                <div className={`px-2.5 py-1 text-[11px] font-bold rounded-full border ${candidate.matchStyle}`}>
-                                    {candidate.match}% MATCH
+                                <div className="flex-1">
+                                    <h3 className="text-[19px] font-bold text-slate-900 dark:text-white mb-0.5">{candidate.name}</h3>
+                                    <p className="text-blue-600 dark:text-purple-400 text-[13px] font-semibold mb-4">{candidate.role}</p>
+                                    <p className="text-blue-600 dark:text-purple-400 text-[13px] font-semibold mb-2">{candidate.email}</p>
+                                    <p className="text-blue-600 dark:text-purple-400 text-[13px] font-semibold mb-4">{candidate.linkedin}</p>
+                                    <div className="bg-slate-50 dark:bg-white/5 rounded-xl p-3 mb-4 border border-slate-100 dark:border-white/5">
+                                        <p className="text-[13px] text-slate-500 dark:text-slate-400 leading-relaxed italic">
+                                            &quot;{candidate.quote}&quot;
+                                        </p>
+                                    </div>
+                                    <div className="flex flex-wrap gap-1.5 mb-6">
+                                        {candidate.skills.map((skill: string, index: number) => (
+                                            <span key={index} className="px-2 py-1 bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 text-[10px] font-bold rounded uppercase tracking-wider">
+                                                {skill}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="flex gap-2 mt-auto">
+                                    <Link
+                                        href="/recruiter/chat"
+                                        className="flex-1"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            // Pass bot ID to the chat page via localStorage
+                                            if (candidate.id) {
+                                                localStorage.setItem("recruiter_chat_botId", candidate.id.split('_')[0]);
+                                                localStorage.setItem("recruiter_chat_botName", candidate.name);
+                                            }
+                                        }}
+                                    >
+                                        <button className="w-full py-2 rounded-lg bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-white text-[13px] font-semibold hover:bg-slate-200 dark:hover:bg-white/10 transition-colors">
+                                            Chat
+                                        </button>
+                                    </Link>
+                                    <Link href="/recruiter/call" className="flex-1" onClick={(e) => e.stopPropagation()}>
+                                        <button className="w-full py-2 rounded-lg bg-blue-600 dark:bg-purple-600 text-white text-[13px] font-semibold hover:bg-blue-700 dark:hover:bg-purple-700 transition-colors">
+                                            Call
+                                        </button>
+                                    </Link>
                                 </div>
                             </div>
-                            <div className="flex-1">
-                                <h3 className="text-[19px] font-bold text-slate-900 dark:text-white mb-0.5">{candidate.name}</h3>
-                                <p className="text-blue-600 dark:text-purple-400 text-[13px] font-semibold mb-4">{candidate.role}</p>
-                                <p className="text-blue-600 dark:text-purple-400 text-[13px] font-semibold mb-2">{candidate.email}</p>
-                                <p className="text-blue-600 dark:text-purple-400 text-[13px] font-semibold mb-4">{candidate.linkedin}</p>
-                                <div className="bg-slate-50 dark:bg-white/5 rounded-xl p-3 mb-4 border border-slate-100 dark:border-white/5">
-                                    <p className="text-[13px] text-slate-500 dark:text-slate-400 leading-relaxed italic">
-                                        &quot;{candidate.quote}&quot;
-                                    </p>
-                                </div>
-                                <div className="flex flex-wrap gap-1.5 mb-6">
-                                    {candidate.skills.map((skill: string, index: number) => (
-                                        <span key={index} className="px-2 py-1 bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 text-[10px] font-bold rounded uppercase tracking-wider">
-                                            {skill}
-                                        </span>
-                                    ))}
-                                </div>
-                            </div>
-                            <div className="flex gap-2 mt-auto">
-                                <Link
-                                    href="/recruiter/chat"
-                                    className="flex-1"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        // Pass bot ID to the chat page via localStorage
-                                        if (candidate.id) {
-                                            localStorage.setItem("recruiter_chat_botId", candidate.id.split('_')[0]);
-                                            localStorage.setItem("recruiter_chat_botName", candidate.name);
-                                        }
-                                    }}
-                                >
-                                    <button className="w-full py-2 rounded-lg bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-white text-[13px] font-semibold hover:bg-slate-200 dark:hover:bg-white/10 transition-colors">
-                                        Chat
-                                    </button>
-                                </Link>
-                                <Link href="/recruiter/call" className="flex-1" onClick={(e) => e.stopPropagation()}>
-                                    <button className="w-full py-2 rounded-lg bg-blue-600 dark:bg-purple-600 text-white text-[13px] font-semibold hover:bg-blue-700 dark:hover:bg-purple-700 transition-colors">
-                                        Call
-                                    </button>
-                                </Link>
-                            </div>
-                        </div>
-                    ))}
+                        ))
+                    )}
                 </div>
+
+                {!isLoadingInitial && !isSearching && displayCandidates.length === 0 && searchResults !== null && (
+                    <div className="py-20 flex flex-col items-center justify-center text-center">
+                        <div className="w-24 h-24 bg-slate-100 dark:bg-white/5 rounded-full flex items-center justify-center mb-6 text-slate-400">
+                            <Search size={32} />
+                        </div>
+                        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">No matches found</h3>
+                        <p className="text-slate-500 dark:text-slate-400 max-w-md mb-6">
+                            We couldn't find any candidates matching "{searchQuery}". Try adjusting your filters or use different keywords.
+                        </p>
+                        <button onClick={clearSearch} className="px-6 py-2.5 bg-white dark:bg-[#1C2128] border border-slate-200 dark:border-white/10 rounded-xl text-sm font-semibold hover:bg-slate-50 dark:hover:bg-white/5 transition-colors shadow-sm">
+                            Clear Search
+                        </button>
+                    </div>
+                )}
+
+                {!isLoadingInitial && !isSearching && displayCandidates.length === 0 && searchResults === null && (
+                    <div className="py-20 flex flex-col items-center justify-center text-center">
+                        <div className="w-24 h-24 bg-slate-100 dark:bg-white/5 rounded-full flex items-center justify-center mb-6 text-slate-400">
+                            <Briefcase size={32} />
+                        </div>
+                        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">No candidates available</h3>
+                        <p className="text-slate-500 dark:text-slate-400 max-w-md">
+                            It looks like there are no candidates in the system right now. Wait for candidates to join.
+                        </p>
+                    </div>
+                )}
 
                 {/* Pagination Controls */}
                 {totalPages > 1 && (
@@ -559,7 +607,7 @@ export default function RecruiterDashboard() {
                             Service Operational
                         </span>
                         <span className="h-1 w-1 bg-slate-300 dark:bg-white/20 rounded-full"></span>
-                        <span>{EXTENDED_CANDIDATES.length.toLocaleString()} Candidates Indexed</span>
+                        <span>{displayCandidates.length.toLocaleString()} Candidates Processed</span>
                     </div>
                     <div className="flex items-center gap-4">
                         <span>Last Update: 2m ago</span>
@@ -574,13 +622,13 @@ export default function RecruiterDashboard() {
             {/* Candidate Profile Modal */}
             {mounted && selectedCandidate && createPortal(
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
-                    <div className="absolute inset-0 bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setSelectedCandidate(null)}></div>
+                    <div className="absolute inset-0 bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm transition-opacity" onClick={closeCandidateModal}></div>
                     <div className="relative w-full max-w-2xl bg-white dark:bg-[#1C2128] rounded-3xl shadow-2xl border border-slate-200 dark:border-white/10 flex flex-col max-h-[90vh] overflow-y-auto custom-scrollbar animate-in fade-in zoom-in-95 duration-200">
                         {/* Header Image / Pattern */}
                         <div className="h-32 shrink-0 bg-gradient-to-r from-blue-600 to-purple-600 relative rounded-t-3xl overflow-hidden">
                             {generateDoodles(selectedCandidate.id + selectedCandidate.name)}
                             <button
-                                onClick={() => setSelectedCandidate(null)}
+                                onClick={closeCandidateModal}
                                 className="absolute top-4 right-4 p-2 bg-black/20 hover:bg-black/40 text-white rounded-full backdrop-blur-md transition-colors z-50"
                             >
                                 <X size={20} />
@@ -602,6 +650,10 @@ export default function RecruiterDashboard() {
                             <p className="text-blue-600 dark:text-purple-400 text-lg font-semibold mb-6">{selectedCandidate.role}</p>
 
                             <div className="flex flex-wrap gap-4 mb-8">
+                                <a href={selectedCandidate.resume_url || "#"} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center h-10 px-4 rounded-full bg-blue-600 dark:bg-purple-600 text-white hover:bg-blue-700 dark:hover:bg-purple-700 transition-colors shadow-sm outline-none focus:ring-2 focus:ring-blue-600/30 gap-2" title="View Resume">
+                                    <FileText size={18} />
+                                    <span className="text-xs font-bold">View Resume</span>
+                                </a>
                                 <a href={`mailto:${selectedCandidate.email}`} className="flex items-center justify-center w-10 h-10 rounded-full bg-slate-50 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 hover:text-blue-600 dark:hover:text-blue-400 transition-colors border border-slate-200 dark:border-white/10 shadow-sm outline-none focus:ring-2 focus:ring-blue-600/30" title={selectedCandidate.email}>
                                     <Mail size={18} />
                                 </a>
@@ -684,5 +736,14 @@ export default function RecruiterDashboard() {
 
             <Footer />
         </div>
+    );
+}
+
+import { Suspense } from "react";
+export default function RecruiterDashboard() {
+    return (
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-[#0B0E14]"><Loader2 className="w-8 h-8 animate-spin text-purple-500" /></div>}>
+            <RecruiterDashboardContent />
+        </Suspense>
     );
 }

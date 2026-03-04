@@ -8,7 +8,7 @@ export function PricingContent() {
     const [isYearly, setIsYearly] = useState(false);
 
     return (
-        <section className="relative pt-40 pb-32 overflow-hidden bg-[var(--bg-main)]">
+        <section className="relative pt-40 pb-32 overflow-hidden bg-transparent">
             <div className="grid-pattern absolute inset-0 pointer-events-none opacity-50"></div>
 
             <div className="max-w-[1280px] mx-auto px-6 relative z-10">
@@ -127,7 +127,18 @@ export function PricingContent() {
     );
 }
 
-function PricingCard({ title, price, period, description, features, isPopular = false, ctaText = "Get Started", delay = 0 }) {
+type PricingCardProps = {
+    title: string;
+    price: string | number;
+    period: string;
+    description: string;
+    features: string[];
+    isPopular?: boolean;
+    ctaText?: string;
+    delay?: number;
+};
+
+function PricingCard({ title, price, period, description, features, isPopular = false, ctaText = "Get Started", delay = 0 }: PricingCardProps) {
     return (
         <motion.div
             initial={{ opacity: 0, y: 40 }}
@@ -135,8 +146,8 @@ function PricingCard({ title, price, period, description, features, isPopular = 
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay }}
             className={`relative rounded-[32px] p-10 flex flex-col transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl ${isPopular
-                    ? "border-2 border-transparent bg-clip-padding relative bg-white shadow-xl shadow-indigo-100 ring-2 ring-indigo-500/20"
-                    : "bg-white border border-[var(--border-color)]"
+                ? "border-2 border-transparent bg-clip-padding relative bg-white shadow-xl shadow-indigo-100 ring-2 ring-indigo-500/20"
+                : "bg-white border border-[var(--border-color)]"
                 }`}
             style={isPopular ? {
                 backgroundImage: "linear-gradient(white, white), linear-gradient(to bottom right, #6366f1, #a855f7)",
@@ -173,8 +184,8 @@ function PricingCard({ title, price, period, description, features, isPopular = 
             </div>
 
             <button className={`w-full py-4 rounded-2xl font-bold text-[15px] transition-all duration-300 ${isPopular
-                    ? "bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-200"
-                    : "border border-slate-200 text-slate-900 hover:bg-slate-50"
+                ? "bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-200"
+                : "border border-slate-200 text-slate-900 hover:bg-slate-50"
                 }`}>
                 {ctaText}
             </button>

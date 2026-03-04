@@ -6,6 +6,9 @@ import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
 import { DotPatternLogo } from "@/components/ui/dot-pattern-logo";
 import { ContainerScroll } from "@/components/ui/container-scroll-animation";
+import { AnimatedCounter } from "@/components/ui/animated-counter";
+import { SpotlightCard } from "@/components/ui/spotlight-card";
+import { WordRorate } from "@/components/ui/word-rotate";
 
 // --- Helper Component: Subtle Typing Effect ---
 const AnimatedTypingText = ({ text }: { text: string }) => {
@@ -52,7 +55,46 @@ export default function LandingPage() {
       <Navbar />
 
       {/* Hero Section */}
-      <section className="bg-[var(--bg-main)]">
+      <section className="bg-[var(--bg-main)] relative">
+        {/* Floating Full-Body Avatars Background */}
+        <div className="absolute inset-x-0 top-0 bottom-0 z-0 pointer-events-none overflow-hidden max-w-[1400px] mx-auto hidden lg:block opacity-[0.6] dark:opacity-[0.4]">
+          {/* Top Left Out of Focus */}
+          <motion.div
+            className="absolute top-[5%] left-[2%] w-56 h-72"
+            animate={{ y: [0, 20, 0], rotate: [1, -3, 1] }}
+            transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+          >
+            <img src="https://api.dicebear.com/7.x/open-peeps/svg?seed=Felix&face=smile&facialHairProbability=0&backgroundColor=transparent" alt="Background Character" className="w-full h-full object-contain opacity-60 blur-[3px] drop-shadow-2xl dark:invert" />
+          </motion.div>
+
+          {/* Top Left Focus */}
+          <motion.div
+            className="absolute top-[20%] left-[12%] w-40 h-56"
+            animate={{ y: [0, -15, 0], rotate: [-2, 2, -2] }}
+            transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+          >
+            <img src="https://api.dicebear.com/7.x/open-peeps/svg?seed=Aneka&face=smile&facialHairProbability=0&backgroundColor=transparent" alt="Background Character" className="w-full h-full object-contain opacity-90 drop-shadow-xl dark:invert" />
+          </motion.div>
+
+          {/* Top Right Focus */}
+          <motion.div
+            className="absolute top-[15%] right-[10%] w-48 h-64"
+            animate={{ y: [0, -25, 0], rotate: [3, -1, 3] }}
+            transition={{ duration: 9, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+          >
+            <img src="https://api.dicebear.com/7.x/open-peeps/svg?seed=Jude&face=smile&facialHairProbability=0&backgroundColor=transparent" alt="Background Character" className="w-full h-full object-contain opacity-80 drop-shadow-xl dark:invert" />
+          </motion.div>
+
+          {/* Center Right Out of Focus */}
+          <motion.div
+            className="absolute top-[40%] right-[2%] w-64 h-80"
+            animate={{ y: [0, 15, 0], rotate: [-2, 2, -2] }}
+            transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
+          >
+            <img src="https://api.dicebear.com/7.x/open-peeps/svg?seed=Cookie&face=smile&facialHairProbability=0&backgroundColor=transparent" alt="Background Character" className="w-full h-full object-contain opacity-50 blur-[4px] drop-shadow-2xl dark:invert" />
+          </motion.div>
+        </div>
+
         <ContainerScroll
           titleComponent={
             <div className="flex flex-col items-center pb-8 pt-8 md:pt-20">
@@ -82,10 +124,10 @@ export default function LandingPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.7, duration: 0.8 }}
               >
-                <button className="btn-primary px-12 py-5 rounded-full font-bold text-[18px] shadow-2xl shadow-indigo-500/20">
+                <button className="bg-blue-600 hover:bg-blue-700 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-white px-12 py-5 rounded-full font-semibold text-[18px] hover:scale-105 transition-all duration-300 shadow-[0_0_40px_rgba(37,99,235,0.3)] dark:shadow-[0_0_40px_rgba(79,70,229,0.4)] relative z-20">
                   Deploy Your AI Twin
                 </button>
-                <button className="bg-[var(--bg-card)] text-[var(--text-main)] border border-[var(--border-color)] px-12 py-5 rounded-full font-bold text-[18px] hover:bg-[var(--bg-card-hover)] transition-colors shadow-sm backdrop-blur-md">
+                <button className="bg-slate-100/50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white px-12 py-5 rounded-full font-semibold text-[18px] hover:bg-slate-200/50 dark:hover:bg-white/10 hover:border-blue-300 dark:hover:border-indigo-400/50 transition-all duration-300 backdrop-blur-md relative z-20">
                   Request Demo
                 </button>
               </motion.div>
@@ -234,21 +276,28 @@ export default function LandingPage() {
           </motion.div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
             {[
-              { value: "12x", label: "Interview Rate", desc: "Higher placement rate for candidates using active AI twins compared to traditional PDFs." },
-              { value: "24/7", label: "Availability", desc: "Your professional expertise stays engaged across every timezone while you focus on what matters." },
-              { value: "100%", label: "Data Sovereignty", desc: "Full encryption and ownership. You control exactly what your twin knows and who it speaks to." },
+              { value: 12, suffix: "x", label: "Interview Rate", desc: "Higher placement rate for candidates using active AI twins compared to traditional PDFs." },
+              { value: 24, suffix: "/7", label: "Availability", desc: "Your professional expertise stays engaged across every timezone while you focus on what matters." },
+              { value: 100, suffix: "%", label: "Data Sovereignty", desc: "Full encryption and ownership. You control exactly what your twin knows and who it speaks to." },
             ].map((stat, i) => (
               <motion.div
                 key={i}
-                className="stat-card"
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: i * 0.1, duration: 0.6 }}
+                transition={{ delay: i * 0.1, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
               >
-                <div className="text-[64px] font-bold text-[var(--brand-purple)] mb-2 tracking-tighter">{stat.value}</div>
-                <div className="text-[13px] font-bold text-[var(--text-muted)] uppercase tracking-[0.2em] mb-6">{stat.label}</div>
-                <p className="text-[17px] text-[var(--text-muted)] leading-relaxed">{stat.desc}</p>
+                <SpotlightCard className="h-full p-10 bg-white/60 dark:bg-[#111318]/60 backdrop-blur-2xl border-black/5 dark:border-white/5">
+                  <div className="text-[64px] font-bold bg-gradient-to-b from-slate-800 to-slate-400 dark:from-white dark:to-white/40 bg-clip-text text-transparent mb-2 tracking-tighter">
+                    {typeof stat.value === 'number' ? (
+                      <AnimatedCounter value={stat.value} suffix={stat.suffix} />
+                    ) : (
+                      stat.value
+                    )}
+                  </div>
+                  <div className="text-[13px] font-bold text-slate-500 dark:text-white/50 uppercase tracking-[0.2em] mb-6">{stat.label}</div>
+                  <p className="text-[17px] text-slate-700 dark:text-white/70 leading-relaxed font-light">{stat.desc}</p>
+                </SpotlightCard>
               </motion.div>
             ))}
           </div>
@@ -274,7 +323,7 @@ export default function LandingPage() {
                 of your professional identity. It integrates with your actual
                 work artifacts to sound and think exactly like you.
               </p>
-              <ul className="space-y-6">
+              <ul className="space-y-6 group">
                 {[
                   "Real-time synchronization with GitHub & LinkedIn",
                   "Proprietary NLP optimized for technical domains",
@@ -282,14 +331,14 @@ export default function LandingPage() {
                 ].map((item, i) => (
                   <motion.li
                     key={i}
-                    className="flex items-center gap-4 text-[18px] font-medium"
+                    className="flex items-center gap-5 text-[18px] font-light text-slate-800 dark:text-white/90 transition-all duration-500 hover:!opacity-100 group-hover:opacity-40 hover:translate-x-1"
                     initial={{ opacity: 0, x: -20 }}
                     whileInView={{ opacity: 1, x: 0 }}
                     viewport={{ once: true }}
-                    transition={{ delay: 0.2 + i * 0.1, duration: 0.5 }}
+                    transition={{ delay: 0.2 + i * 0.1, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
                   >
-                    <div className="w-6 h-6 rounded-full bg-indigo-500/20 flex items-center justify-center border border-indigo-500/30">
-                      <Check className="text-[var(--brand-purple)] w-4 h-4 font-bold" />
+                    <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-white/5 flex items-center justify-center border border-slate-300 dark:border-white/10 transition-colors duration-500 group-hover/li:bg-slate-300 dark:group-hover/li:bg-white/10 shrink-0">
+                      <Check className="text-slate-700 dark:text-white w-4 h-4 font-bold" />
                     </div>
                     {item}
                   </motion.li>
@@ -313,26 +362,84 @@ export default function LandingPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-56 px-8 bg-[var(--bg-main)]">
+      <section className="py-56 px-8 bg-[var(--bg-main)] relative overflow-hidden">
+        <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.25] dark:opacity-[0.15]">
+          <motion.div
+            className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-300/40 dark:bg-white/20 rounded-full blur-[120px] mix-blend-multiply dark:mix-blend-screen"
+            animate={{ x: [0, 50, 0], y: [0, -50, 0], scale: [1, 1.2, 1] }}
+            transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
+          />
+          <motion.div
+            className="absolute bottom-1/4 right-1/4 w-[30rem] h-[30rem] bg-purple-300/40 dark:bg-slate-400/20 rounded-full blur-[150px] mix-blend-multiply dark:mix-blend-screen"
+            animate={{ x: [0, -50, 0], y: [0, 50, 0], scale: [1, 1.1, 1] }}
+            transition={{ duration: 20, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+          />
+        </div>
+
+        {/* Floating Avatars Background */}
+        <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden max-w-[1400px] mx-auto hidden md:block">
+          {/* Top Left */}
+          <motion.div
+            className="absolute top-[15%] left-[10%] w-20 h-20 rounded-full overflow-hidden border border-slate-200 dark:border-white/10 shadow-[0_0_30px_rgba(0,0,0,0.05)] dark:shadow-[0_0_30px_rgba(255,255,255,0.05)] opacity-80"
+            animate={{ y: [0, -15, 0], rotate: [-5, 5, -5] }}
+            transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+          >
+            <img src="https://api.dicebear.com/7.x/notionists/svg?seed=Felix&backgroundColor=e2e8f0" alt="Avatar" className="w-full h-full object-cover" />
+          </motion.div>
+          {/* Top Right */}
+          <motion.div
+            className="absolute top-[20%] right-[8%] w-16 h-16 rounded-full overflow-hidden border border-slate-200 dark:border-white/10 shadow-[0_0_30px_rgba(0,0,0,0.05)] dark:shadow-[0_0_30px_rgba(255,255,255,0.05)] opacity-70"
+            animate={{ y: [0, -20, 0], rotate: [5, -5, 5] }}
+            transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+          >
+            <img src="https://api.dicebear.com/7.x/notionists/svg?seed=Aneka&backgroundColor=fef08a" alt="Avatar" className="w-full h-full object-cover" />
+          </motion.div>
+          {/* Bottom Left */}
+          <motion.div
+            className="absolute bottom-[20%] left-[15%] w-24 h-24 rounded-full overflow-hidden border border-slate-200 dark:border-white/10 shadow-[0_0_30px_rgba(0,0,0,0.05)] dark:shadow-[0_0_30px_rgba(255,255,255,0.05)] opacity-60"
+            animate={{ y: [0, 15, 0], rotate: [-2, 4, -2] }}
+            transition={{ duration: 8, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+          >
+            <img src="https://api.dicebear.com/7.x/notionists/svg?seed=Mia&backgroundColor=fbcfe8" alt="Avatar" className="w-full h-full object-cover" />
+          </motion.div>
+          {/* Bottom Right */}
+          <motion.div
+            className="absolute bottom-[15%] right-[15%] w-28 h-28 rounded-full overflow-hidden border border-slate-200 dark:border-white/10 shadow-[0_0_30px_rgba(0,0,0,0.05)] dark:shadow-[0_0_30px_rgba(255,255,255,0.05)] opacity-90"
+            animate={{ y: [0, -10, 0], rotate: [2, -2, 2] }}
+            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
+          >
+            <img src="https://api.dicebear.com/7.x/notionists/svg?seed=Oliver&backgroundColor=bbf7d0" alt="Avatar" className="w-full h-full object-cover" />
+          </motion.div>
+          {/* Center Right */}
+          <motion.div
+            className="absolute top-[45%] right-[2%] w-12 h-12 rounded-full overflow-hidden border border-slate-200 dark:border-white/10 shadow-[0_0_30px_rgba(0,0,0,0.05)] dark:shadow-[0_0_30px_rgba(255,255,255,0.05)] opacity-50"
+            animate={{ y: [0, -25, 0], rotate: [10, -10, 10] }}
+            transition={{ duration: 9, repeat: Infinity, ease: "easeInOut", delay: 3 }}
+          >
+            <img src="https://api.dicebear.com/7.x/notionists/svg?seed=Zoe&backgroundColor=c4b5fd" alt="Avatar" className="w-full h-full object-cover" />
+          </motion.div>
+        </div>
+
         <motion.div
-          className="max-w-[900px] mx-auto text-center space-y-12"
+          className="max-w-[900px] mx-auto text-center space-y-10 relative z-10"
           initial={{ opacity: 0, y: 40 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ duration: 0.8 }}
+          transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
         >
-          <h2 className="text-[64px] md:text-[80px] font-bold tracking-tighter text-[var(--text-main)] leading-none">
-            Scale your expertise.
+          <h2 className="text-[64px] md:text-[80px] font-bold tracking-tighter text-[var(--text-main)] leading-none flex flex-col md:flex-row items-center justify-center gap-4">
+            <span>Scale your </span>
+            <WordRorate words={["expertise.", "impact.", "future."]} />
           </h2>
-          <p className="text-2xl text-[var(--text-muted)] max-w-2xl mx-auto leading-relaxed">
+          <p className="text-2xl text-slate-500 dark:text-white/50 max-w-2xl mx-auto leading-relaxed font-light mt-6">
             Join 50,000+ top-tier professionals who are already using TwinlyAI
             to navigate the future of recruitment.
           </p>
-          <div className="pt-8 flex flex-col sm:flex-row items-center justify-center gap-8">
-            <button className="bg-[var(--brand-purple)] text-white px-12 py-6 rounded-full font-bold text-[20px] hover:opacity-90 transition-opacity button-hover-effect shadow-xl shadow-indigo-500/20">
+          <div className="pt-10 flex flex-col sm:flex-row items-center justify-center gap-6">
+            <button className="bg-slate-900 dark:bg-white text-white dark:text-black px-12 py-5 rounded-full font-semibold text-[18px] hover:scale-105 transition-transform duration-300 shadow-[0_0_40px_rgba(0,0,0,0.1)] dark:shadow-[0_0_40px_rgba(255,255,255,0.15)]">
               Create Your Instance
             </button>
-            <button className="bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-main)] px-12 py-6 rounded-full font-bold text-[20px] hover:bg-[var(--bg-card-hover)] transition-colors">
+            <button className="bg-slate-100/50 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white px-12 py-5 rounded-full font-semibold text-[18px] hover:bg-slate-200/50 dark:hover:bg-white/10 transition-colors duration-300 backdrop-blur-md">
               Talk to Sales
             </button>
           </div>

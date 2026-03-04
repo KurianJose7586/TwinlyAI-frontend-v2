@@ -58,21 +58,21 @@ export function Navbar() {
                         </span>
                     </Link>
                 </div>
-                <div className="hidden md:flex items-center gap-8 text-[14px] font-medium text-[var(--text-muted)]">
+                <div className="hidden md:flex items-center gap-8 text-[14px] font-medium text-slate-500 dark:text-slate-400">
                     <Link
-                        className="hover:text-[var(--brand-purple)] transition-colors"
+                        className="hover:text-slate-900 dark:hover:text-white transition-colors"
                         href="/solutions"
                     >
                         Solutions
                     </Link>
                     <Link
-                        className="hover:text-[var(--brand-purple)] transition-colors"
+                        className="hover:text-slate-900 dark:hover:text-white transition-colors"
                         href="/pricing"
                     >
                         Pricing
                     </Link>
                     <Link
-                        className="hover:text-[var(--brand-purple)] transition-colors"
+                        className="hover:text-slate-900 dark:hover:text-white transition-colors"
                         href="/about"
                     >
                         About Us
@@ -81,14 +81,14 @@ export function Navbar() {
                 <div className="flex items-center gap-5 text-[14px]">
                     <ThemeToggle />
                     <Link
-                        className="text-[var(--text-muted)] font-medium hover:text-[var(--brand-purple)]"
+                        className="text-slate-500 dark:text-slate-400 font-medium hover:text-blue-600 dark:hover:text-indigo-400 transition-colors"
                         href="/login"
                     >
                         Login
                     </Link>
                     <Link
                         href="/role-selection"
-                        className="bg-[var(--brand-purple)] text-white px-5 py-2 rounded-full text-[13px] font-semibold hover:opacity-90 transition-opacity shadow-lg shadow-purple-500/20"
+                        className="bg-blue-600 dark:bg-indigo-600 text-white px-5 py-2 rounded-full text-[13px] font-semibold hover:scale-105 transition-transform shadow-[0_0_20px_rgba(37,99,235,0.2)] dark:shadow-[0_0_20px_rgba(79,70,229,0.3)] hover:bg-blue-700 dark:hover:bg-indigo-700"
                     >
                         Start Free Trial
                     </Link>

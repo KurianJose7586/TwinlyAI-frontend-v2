@@ -6,6 +6,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
+import { AuthService } from "@/services/auth.service";
 import {
     getToken,
     setToken,
@@ -62,15 +63,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     const login = async (email: string, password: string) => {
-        // Backend expects form-data (OAuth2PasswordRequestForm)
-        const formData = new URLSearchParams();
-        formData.append("username", email);
-        formData.append("password", password);
-
-        const response = await api.post("/auth/login", formData, {
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        });
-        const { access_token } = response.data;
+        const data = await AuthService.login(email, password);
+        const { access_token } = data;
 
         // Store token and parse user immediately (synchronous)
         setToken(access_token);

@@ -21,7 +21,7 @@ const transition = { duration: 0.6, ease: "easeOut" as const };
 
 export function AboutContent() {
     return (
-        <div className="overflow-hidden bg-[var(--bg-main)]">
+        <div className="overflow-hidden bg-transparent">
             {/* Background Ambience */}
             <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
                 <div className="absolute w-[500px] h-[500px] bg-indigo-100/40 rounded-full -top-48 -left-24 blur-[80px]" />

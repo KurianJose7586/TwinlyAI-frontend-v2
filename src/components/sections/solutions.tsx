@@ -7,7 +7,7 @@ import Link from "next/link";
 
 export function SolutionsHero() {
     return (
-        <section className="pt-32 pb-12 relative overflow-hidden bg-[var(--hero-gradient)]">
+        <section className="pt-32 pb-12 relative overflow-hidden bg-transparent">
             <div className="grid-pattern absolute inset-0 pointer-events-none"></div>
             <div className="max-w-[1100px] mx-auto px-6 relative z-10 text-center">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-indigo-100 text-[10px] font-bold text-indigo-600 uppercase tracking-widest shadow-sm mb-6">
@@ -35,7 +35,7 @@ export function SolutionsHero() {
 
 export function SolutionsSection() {
     return (
-        <section id="solutions" className="py-24 bg-[var(--bg-main)] relative overflow-hidden transition-colors duration-300">
+        <section id="solutions" className="py-24 bg-transparent relative overflow-hidden transition-colors duration-300">
             <div className="max-w-[1200px] mx-auto px-6 relative z-10">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
@@ -45,7 +45,7 @@ export function SolutionsSection() {
                     className="text-center mb-16"
                 >
                     <h2 className="text-[42px] md:text-[52px] font-bold tracking-tighter text-[var(--text-main)] mb-6">
-                        The End of <span className="bg-clip-text text-transparent bg-gradient-to-r from-[var(--brand-purple)] to-[var(--brand-blue)]">Static Hiring</span>
+                        The End of <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-indigo-400 dark:to-blue-400">Static Hiring</span>
                     </h2>
                     <p className="text-lg text-[var(--text-muted)] max-w-2xl mx-auto leading-relaxed">
                         TwinlyAI transforms static PDFs into living, breathing AI agents. Enable instant screening, deeper discovery, and authentic representation.

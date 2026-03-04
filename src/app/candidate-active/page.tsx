@@ -25,6 +25,8 @@ import { useTheme } from "next-themes";
 import api from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { ResumeUploadZone } from "@/components/ui/resume-upload-zone";
+import { useBots, useUpdateBot } from "@/hooks/useBots";
+import { useApiKeys, useCreateApiKey, useDeleteApiKey } from "@/hooks/useApiKeys";
 
 type APIKey = { id: string; prefix: string };
 
@@ -45,14 +47,37 @@ export default function CandidateActiveDashboard() {
     // --- Dashboard form state ---
     const [agentName, setAgentName] = React.useState("");
     const [agentBio, setAgentBio] = React.useState("");
+    const originalAgentState = React.useRef({ name: "", bio: "" });
     const [isSaving, setIsSaving] = React.useState(false);
     const [saveSuccess, setSaveSuccess] = React.useState(false);
 
+    const hasUnsavedChanges = () => {
+        return agentName !== originalAgentState.current.name || agentBio !== originalAgentState.current.bio;
+    };
+
+    const safeTabChange = (newTab: string) => {
+        if (activeTab === 'dashboard' && hasUnsavedChanges()) {
+            if (!window.confirm("You have unsaved changes to your Agent Context. Are you sure you want to navigate away and discard them?")) {
+                return;
+            }
+            // Revert changes if discarded
+            setAgentName(originalAgentState.current.name);
+            setAgentBio(originalAgentState.current.bio);
+        }
+        setActiveTab(newTab);
+    };
+
     // --- API Keys state ---
-    const [apiKeys, setApiKeys] = React.useState<APIKey[]>([]);
-    const [isCreatingKey, setIsCreatingKey] = React.useState(false);
+    const { data: fetchedApiKeys } = useApiKeys();
+    const apiKeys: APIKey[] = fetchedApiKeys || [];
+    const { mutateAsync: createKeyMutation, isPending: isCreatingKey } = useCreateApiKey();
+    const { mutateAsync: deleteKeyMutation } = useDeleteApiKey();
+
     const [newKeyValue, setNewKeyValue] = React.useState<string | null>(null);
     const [copiedKeyId, setCopiedKeyId] = React.useState<string | null>(null);
+
+    const { data: fetchedBots } = useBots();
+    const { mutateAsync: updateBotMutation } = useUpdateBot();
 
     React.useEffect(() => {
         setMounted(true);
@@ -67,34 +92,33 @@ export default function CandidateActiveDashboard() {
         setUserAvatar(avatar);
         setBotId(id);
         setAgentName(`${name} AI`);
-        setAgentBio(`I'm ${name.split(' ')[0]}'s AI twin. I represent their skills and career achievements. I should be articulate, helpful, and maintain professional ethics.`);
-
-        // Fetch real bots from backend if we don't have a botId yet
-        if (!id) {
-            api.get("/bots/").then(res => {
-                const bots = res.data;
-                if (bots.length > 0) {
-                    const bot = bots[0];
-                    const realId = bot.id || bot._id;
-                    localStorage.setItem("twinly_botId", realId);
-                    localStorage.setItem("twinly_userName", bot.name);
-                    setBotId(realId);
-                    setUserName(bot.name);
-                    setAgentName(`${bot.name} AI`);
-                    setAgentBio(`I'm ${bot.name.split(' ')[0]}'s AI twin.`);
-                }
-            }).catch(() => { });
-        }
-
-        // Load API Keys
-        api.get("/api-keys/").then(res => setApiKeys(res.data)).catch(() => { });
+        const initialBio = `I'm ${name.split(' ')[0]}'s AI twin. I represent their skills and career achievements. I should be articulate, helpful, and maintain professional ethics.`;
+        setAgentBio(initialBio);
+        originalAgentState.current = { name: `${name} AI`, bio: initialBio };
     }, []);
+
+    // Sync bot data from React Query
+    React.useEffect(() => {
+        if (!botId && fetchedBots && fetchedBots.length > 0) {
+            const bot = fetchedBots[0];
+            const realId = bot.id || bot._id;
+            localStorage.setItem("twinly_botId", realId);
+            localStorage.setItem("twinly_userName", bot.name);
+            setBotId(realId);
+            setUserName(bot.name);
+            setAgentName(`${bot.name} AI`);
+            const initialBio = `I'm ${bot.name.split(' ')[0]}'s AI twin.`;
+            setAgentBio(initialBio);
+            originalAgentState.current = { name: `${bot.name} AI`, bio: initialBio };
+        }
+    }, [botId, fetchedBots]);
 
     const handlePublishChanges = async () => {
         if (!botId) return;
         setIsSaving(true);
         try {
-            await api.patch(`/bots/${botId}`, { name: agentName.replace(" AI", "") });
+            await updateBotMutation({ botId, data: { name: agentName.replace(" AI", "") } });
+            originalAgentState.current = { name: agentName, bio: agentBio };
             setSaveSuccess(true);
             setTimeout(() => setSaveSuccess(false), 2500);
         } catch (e) {
@@ -104,23 +128,20 @@ export default function CandidateActiveDashboard() {
     };
 
     const handleCreateApiKey = async () => {
-        setIsCreatingKey(true);
         try {
-            const res = await api.post("/api-keys/");
-            setNewKeyValue(res.data.api_key);
-            // Refresh list
-            const list = await api.get("/api-keys/");
-            setApiKeys(list.data);
+            const res = await createKeyMutation();
+            setNewKeyValue(res.api_key);
         } catch (e) {
             console.error("Failed to create API key:", e);
         }
-        setIsCreatingKey(false);
     };
 
     const handleDeleteApiKey = async (keyId: string) => {
+        if (!window.confirm("Are you sure you want to delete this API Key? Any applications using it will lose access immediately.")) {
+            return;
+        }
         try {
-            await api.delete(`/api-keys/${keyId}`);
-            setApiKeys(prev => prev.filter(k => k.id !== keyId));
+            await deleteKeyMutation(keyId);
         } catch (e) {
             console.error("Failed to delete API key:", e);
         }
@@ -218,7 +239,7 @@ export default function CandidateActiveDashboard() {
 
                 <nav className="flex-1 px-4 space-y-1">
                     <button
-                        onClick={() => setActiveTab('dashboard')}
+                        onClick={() => safeTabChange('dashboard')}
                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${activeTab === 'dashboard'
                             ? 'bg-slate-900/5 dark:bg-white/10 text-slate-900 dark:text-white'
                             : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900/5 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white'
@@ -228,7 +249,7 @@ export default function CandidateActiveDashboard() {
                         <span className="hidden lg:block">Dashboard</span>
                     </button>
                     <button
-                        onClick={() => setActiveTab('analytics')}
+                        onClick={() => safeTabChange('analytics')}
                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${activeTab === 'analytics'
                             ? 'bg-slate-900/5 dark:bg-white/10 text-slate-900 dark:text-white'
                             : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900/5 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white'
@@ -238,7 +259,7 @@ export default function CandidateActiveDashboard() {
                         <span className="hidden lg:block">Analytics</span>
                     </button>
                     <button
-                        onClick={() => setActiveTab('history')}
+                        onClick={() => safeTabChange('history')}
                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${activeTab === 'history'
                             ? 'bg-slate-900/5 dark:bg-white/10 text-slate-900 dark:text-white'
                             : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900/5 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white'
@@ -248,7 +269,7 @@ export default function CandidateActiveDashboard() {
                         <span className="hidden lg:block">History</span>
                     </button>
                     <button
-                        onClick={() => setActiveTab('settings')}
+                        onClick={() => safeTabChange('settings')}
                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${activeTab === 'settings'
                             ? 'bg-slate-900/5 dark:bg-white/10 text-slate-900 dark:text-white'
                             : 'text-slate-500 dark:text-slate-400 hover:bg-slate-900/5 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white'
@@ -551,17 +572,17 @@ export default function CandidateActiveDashboard() {
                         {activeTab === 'analytics' && (
                             <div className="flex flex-col gap-6 animate-in fade-in duration-300">
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    <div className="bg-white/80 dark:bg-[#1C2128]/80 backdrop-blur-md border border-slate-200 dark:border-white/10 shadow-sm rounded-3xl p-8">
+                                    <div className="bg-white/80 dark:bg-[#1C2128]/80 backdrop-blur-md border border-slate-200 dark:border-white/10 shadow-sm rounded-3xl p-8 min-h-[160px] flex flex-col justify-between">
                                         <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wide">Total Profile Views</p>
                                         <h3 className="text-4xl font-bold bg-gradient-to-r from-[#007AFF] to-[#5AC8FA] bg-clip-text text-transparent">3,492</h3>
                                         <p className="text-sm font-medium text-green-600 dark:text-green-400 mt-3 flex items-center gap-1">+12% <span className="text-slate-400 text-xs">from last week</span></p>
                                     </div>
-                                    <div className="bg-white/80 dark:bg-[#1C2128]/80 backdrop-blur-md border border-slate-200 dark:border-white/10 shadow-sm rounded-3xl p-8">
+                                    <div className="bg-white/80 dark:bg-[#1C2128]/80 backdrop-blur-md border border-slate-200 dark:border-white/10 shadow-sm rounded-3xl p-8 min-h-[160px] flex flex-col justify-between">
                                         <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wide">Agent Inquiries</p>
                                         <h3 className="text-4xl font-bold bg-gradient-to-r from-purple-500 to-fuchsia-500 bg-clip-text text-transparent">128</h3>
                                         <p className="text-sm font-medium text-green-600 dark:text-green-400 mt-3 flex items-center gap-1">+4% <span className="text-slate-400 text-xs">from last week</span></p>
                                     </div>
-                                    <div className="bg-white/80 dark:bg-[#1C2128]/80 backdrop-blur-md border border-slate-200 dark:border-white/10 shadow-sm rounded-3xl p-8">
+                                    <div className="bg-white/80 dark:bg-[#1C2128]/80 backdrop-blur-md border border-slate-200 dark:border-white/10 shadow-sm rounded-3xl p-8 min-h-[160px] flex flex-col justify-between">
                                         <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wide">Avg. Match Score</p>
                                         <h3 className="text-4xl font-bold bg-gradient-to-r from-green-500 to-emerald-400 bg-clip-text text-transparent">94%</h3>
                                         <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-3">High compatibility rating</p>
@@ -660,7 +681,17 @@ export default function CandidateActiveDashboard() {
                                     <div className="p-5 border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/5 rounded-2xl">
                                         <h4 className="font-semibold text-sm text-red-700 dark:text-red-400">Deactivate Agent</h4>
                                         <p className="text-xs text-red-600/80 dark:text-red-400/80 mt-1 mb-4">This will immediately pull your TwinlyAI profile offline. Recruiters will no longer be able to chat.</p>
-                                        <button className="px-5 py-2.5 bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400 text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-red-200 dark:hover:bg-red-500/30 transition-colors">
+                                        <button
+                                            onClick={() => {
+                                                const confirmation = window.prompt("This will permanently delete your AI Twin and all associated data. To confirm, type 'DELETE'.");
+                                                if (confirmation === 'DELETE') {
+                                                    // Trigger deactivation logic
+                                                    alert("Agent deactivated. You can recreate your twin at any time.");
+                                                    window.location.href = "/role-selection";
+                                                }
+                                            }}
+                                            className="px-5 py-2.5 bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400 text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-red-200 dark:hover:bg-red-500/30 transition-colors"
+                                        >
                                             Take Offline
                                         </button>
                                     </div>
