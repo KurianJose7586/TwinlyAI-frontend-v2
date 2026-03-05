@@ -5,6 +5,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { AuthService } from "@/services/auth.service";
 import {
@@ -33,6 +34,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<StoredUser | null>(null);
     const [token, setTokenState] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const queryClient = useQueryClient();
 
     // Parse a raw JWT and persist user + token
     const setAuthFromToken = useCallback((rawToken: string) => {
@@ -63,6 +65,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     const login = async (email: string, password: string) => {
+        // Clear old profile cache to prevent cross-account ghosting
+        queryClient.clear();
+
         const data = await AuthService.login(email, password);
         const { access_token } = data;
 
@@ -83,9 +88,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     const logout = () => {
+        queryClient.clear();
         clearToken();
         setUser(null);
         setTokenState(null);
+
+        if (typeof window !== "undefined") {
+            const keysToRemove = [
+                "twinly_botId",
+                "twinly_userName",
+                "userName",
+                "userAvatar",
+                "recruiter_chat_botId",
+                "recruiter_chat_botName",
+                "recruiter_keywords",
+                "onboarding_state"
+            ];
+            keysToRemove.forEach(k => localStorage.removeItem(k));
+        }
+
         router.push("/login");
     };
 

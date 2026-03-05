@@ -4,7 +4,7 @@ import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, ChevronLeft, Check, Sparkles, Plus, X, Upload, AlertCircle } from "lucide-react";
+import { ArrowRight, ChevronLeft, Check, Sparkles, Plus, X, Upload, AlertCircle, Target, Briefcase } from "lucide-react";
 import api from "@/lib/api";
 import { setToken, setStoredUser } from "@/lib/auth";
 
@@ -222,6 +222,7 @@ function OnboardingWizardForm() {
                     website_url: formData.website_url,
                     projects: formData.projects,
                     summary: formData.aspirations,
+                    avatar_url: formData.avatarUrl,
                 }, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
@@ -234,6 +235,12 @@ function OnboardingWizardForm() {
                 // For recruiters, just store basic info
                 localStorage.setItem("userName", `${formData.firstName} ${formData.lastName}`);
                 localStorage.setItem("userAvatar", formData.avatarUrl);
+
+                // Store keywords for default Dashboard view
+                const keywords = [...formData.hiringRoles, ...formData.techStackFocus].filter(Boolean).join(" ");
+                if (keywords) {
+                    localStorage.setItem("recruiter_keywords", keywords);
+                }
             }
 
             localStorage.removeItem(STORAGE_KEY);
@@ -373,9 +380,9 @@ function OnboardingWizardForm() {
                 <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-purple-900/20 blur-[120px]" />
             </div>
 
-            <div className="fixed top-0 left-0 right-0 p-6 md:p-8 flex justify-between items-center z-50 bg-slate-100/80 dark:bg-[#0B0E14]/80 backdrop-blur-md border-b border-transparent dark:border-white/5">
-                <div className="flex items-center gap-4">
-                    <Image src="/butterfly.svg" alt="TwinlyAI" width={40} height={40} className="w-10 h-10" />
+            <div className="fixed top-0 left-0 right-0 p-4 md:p-8 flex justify-between items-center z-50 bg-slate-100/80 dark:bg-[#0B0E14]/80 backdrop-blur-md border-b border-transparent dark:border-white/5">
+                <div className="flex items-center gap-3 md:gap-4 font-sans antialiased">
+                    <Image src="/butterfly.svg" alt="TwinlyAI" width={32} height={32} className="w-8 h-8 md:w-10 md:h-10" />
 
                     <AnimatePresence>
                         {step > 2 && (
@@ -384,11 +391,11 @@ function OnboardingWizardForm() {
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, x: -20 }}
                             >
-                                <div className="hidden md:flex items-center gap-2 bg-slate-200/50 dark:bg-[#1C2128]/50 px-3 py-1.5 rounded-full">
+                                <div className="hidden sm:flex items-center gap-2 bg-slate-200/50 dark:bg-[#1C2128]/50 px-3 py-1.5 rounded-full">
                                     <div className="w-6 h-6 rounded-full overflow-hidden border border-slate-300 dark:border-white/20">
                                         <img src={formData.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                                     </div>
-                                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                                    <span className="text-[13px] font-semibold text-slate-700 dark:text-slate-300 truncate max-w-[80px]">
                                         {formData.firstName}
                                     </span>
                                 </div>
@@ -397,14 +404,14 @@ function OnboardingWizardForm() {
                     </AnimatePresence>
                 </div>
 
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3 md:gap-4">
                     <AnimatePresence>
                         {step > 2 && (
                             <motion.div
                                 initial={{ opacity: 0, scale: 0.8 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 exit={{ opacity: 0, scale: 0.8 }}
-                                className="md:hidden"
+                                className="sm:hidden"
                             >
                                 <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-slate-200 dark:border-white/10 shadow-sm">
                                     <img src={formData.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
@@ -419,24 +426,70 @@ function OnboardingWizardForm() {
                             localStorage.setItem(STORAGE_KEY, JSON.stringify({ step, formData }));
                             router.push("/role-selection");
                         }}
-                        className="text-sm font-semibold text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors"
+                        className="text-[13px] font-semibold text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors min-h-[44px] flex items-center"
                     >
-                        Save & Exit Setup
+                        Save & Exit
                     </button>
                 </div>
             </div>
 
             <main className="w-full max-w-2xl relative z-10">
                 {isSubmitting ? (
-                    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center text-center space-y-6">
-                        <div className="w-20 h-20 relative flex items-center justify-center">
-                            <div className="absolute inset-0 rounded-full border-4 border-slate-200 dark:border-white/10" />
-                            <div className="absolute inset-0 rounded-full border-4 border-blue-600 dark:border-purple-500 border-t-transparent animate-spin" />
-                            <Sparkles className="w-8 h-8 text-blue-600 dark:text-purple-400 animate-pulse" />
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center min-h-[400px] w-full">
+                        <div className="w-24 h-24 mb-10 relative">
+                            {/* Abstract layered document icon animating */}
+                            <motion.div
+                                className="absolute inset-0 bg-blue-50 dark:bg-white/5 border border-blue-100 dark:border-white/10 rounded-2xl"
+                                animate={{ y: [0, -8, 0], rotate: [0, -3, 0] }}
+                                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                            />
+                            <motion.div
+                                className="absolute inset-0 bg-white dark:bg-[#1C2128] border border-slate-200 dark:border-white/10 rounded-2xl shadow-xl flex items-center justify-center z-10"
+                                animate={{ y: [0, 4, 0], rotate: [0, 2, 0] }}
+                                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 0.2 }}
+                            >
+                                {role === 'candidate' ? (
+                                    <Sparkles className="w-10 h-10 text-blue-600 dark:text-purple-400" />
+                                ) : (
+                                    <Target className="w-10 h-10 text-blue-600 dark:text-purple-400" />
+                                )}
+                            </motion.div>
                         </div>
-                        <div>
-                            <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Initializing your AI Twin...</h2>
-                            <p className="text-slate-500 dark:text-slate-400">This will just take a moment.</p>
+
+                        <div className="space-y-4 max-w-sm w-full mx-auto bg-white/50 dark:bg-black/20 backdrop-blur-sm p-8 rounded-3xl border border-slate-200/50 dark:border-white/5">
+                            <h2 className="text-xl font-bold text-slate-800 dark:text-[#F9FAFB] mb-6 text-center tracking-tight">
+                                {role === 'candidate' ? "Assembling your AI Twin" : "Structuring your Workspace"}
+                            </h2>
+                            {[
+                                { text: role === 'candidate' ? "Parsing background and experience..." : "Configuring job profiles...", delay: 0 },
+                                { text: role === 'candidate' ? "Tuning personality matrix..." : "Structuring interview models...", delay: 1.5 },
+                                { text: "Finalizing preferences...", delay: 3 }
+                            ].map((stepItem, i) => (
+                                <motion.div
+                                    key={i}
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: stepItem.delay, duration: 0.8, ease: "easeOut" }}
+                                    className="flex items-center gap-4 text-[13px] font-semibold text-slate-500 dark:text-slate-400"
+                                >
+                                    <div className="relative flex items-center justify-center w-5 h-5">
+                                        <motion.div
+                                            animate={{ scale: [1, 1.5, 1], opacity: [0.3, 0.8, 0.3] }}
+                                            transition={{ duration: 1.5, repeat: Infinity }}
+                                            className="absolute w-2 h-2 rounded-full bg-blue-500/30 dark:bg-purple-500/30"
+                                        />
+                                        <div className="w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-purple-500 relative z-10" />
+                                    </div>
+                                    <span className="flex-1">{stepItem.text}</span>
+                                    <motion.div
+                                        initial={{ opacity: 0, scale: 0.5 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        transition={{ delay: stepItem.delay + 1, duration: 0.3 }}
+                                    >
+                                        <Check className="w-4 h-4 text-green-500 dark:text-green-400" />
+                                    </motion.div>
+                                </motion.div>
+                            ))}
                         </div>
                     </motion.div>
                 ) : (
@@ -453,9 +506,9 @@ function OnboardingWizardForm() {
                             ))}
                         </div>
 
-                        <div className="bg-white dark:bg-[#161B22] border border-transparent dark:border-white/10 rounded-[2.5rem] p-10 md:p-14 shadow-2xl transition-colors duration-300 min-h-[450px] relative overflow-hidden flex flex-col">
+                        <div className="bg-white dark:bg-[#161B22] border border-transparent dark:border-white/10 rounded-[2.5rem] p-8 md:p-14 shadow-2xl transition-colors duration-300 min-h-[450px] relative overflow-hidden flex flex-col">
                             {step > 1 && (
-                                <button onClick={handleBack} className="absolute top-8 left-8 text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors z-20">
+                                <button onClick={handleBack} className="absolute top-6 left-6 md:top-8 md:left-8 text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors z-20 min-h-[44px] min-w-[44px] flex items-center justify-center">
                                     <ChevronLeft size={24} />
                                 </button>
                             )}
@@ -854,7 +907,7 @@ function OnboardingWizardForm() {
                                 <button
                                     onClick={handleNext}
                                     disabled={!isStepValid()}
-                                    className={`flex items-center justify-center gap-2 px-8 py-4 rounded-2xl font-bold transition-all duration-300 ${isStepValid()
+                                    className={`flex items-center justify-center gap-2 px-8 py-4 rounded-2xl font-bold transition-all duration-300 min-h-[44px] ${isStepValid()
                                         ? 'bg-blue-600 dark:bg-purple-600 text-white hover:opacity-90 shadow-lg shadow-blue-500/20 dark:shadow-purple-500/20 hover:scale-[1.02]'
                                         : 'bg-slate-100 dark:bg-white/5 text-slate-400 dark:text-slate-500 cursor-not-allowed'
                                         }`}

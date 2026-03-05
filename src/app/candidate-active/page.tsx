@@ -20,9 +20,11 @@ import {
     Check,
     Sun,
     Moon,
-    X
+    X,
+    Sparkles
 } from "lucide-react";
 import { useTheme } from "next-themes";
+import ReactMarkdown from "react-markdown";
 import api from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { ResumeUploadZone } from "@/components/ui/resume-upload-zone";
@@ -124,36 +126,42 @@ export default function CandidateActiveDashboard() {
 
     // Sync bot data from React Query
     React.useEffect(() => {
-        if (fetchedBots && fetchedBots.length > 0) {
-            const bot = fetchedBots[0];
-            const realId = bot.id || bot._id;
+        if (fetchedBots) {
+            if (fetchedBots.length > 0) {
+                const bot = fetchedBots[0];
+                const realId = bot.id || bot._id;
 
-            if (!botId) {
-                localStorage.setItem("twinly_botId", realId);
-                localStorage.setItem("twinly_userName", bot.name);
-                setBotId(realId);
+                if (botId !== realId) {
+                    localStorage.setItem("twinly_botId", realId);
+                    localStorage.setItem("twinly_userName", bot.name);
+                    setBotId(realId);
+                }
+
+                setUserName(bot.name);
+                setAgentName(`${bot.name} AI`);
+                setAgentBio(bot.summary || `I'm ${bot.name.split(' ')[0]}'s AI twin.`);
+                setGithubUrl(bot.github_url || "");
+                setTwitterUrl(bot.twitter_url || "");
+                setWebsiteUrl(bot.website_url || "");
+                setLinkedinUrl(bot.linkedin_url || "");
+                setProjects(bot.projects || []);
+
+                originalAgentState.current = {
+                    name: `${bot.name} AI`,
+                    bio: bot.summary || `I'm ${bot.name.split(' ')[0]}'s AI twin.`,
+                    githubUrl: bot.github_url || "",
+                    twitterUrl: bot.twitter_url || "",
+                    websiteUrl: bot.website_url || "",
+                    linkedinUrl: bot.linkedin_url || "",
+                    projects: bot.projects || []
+                };
+            } else {
+                localStorage.removeItem("twinly_botId");
+                localStorage.removeItem("twinly_userName");
+                if (botId !== null) setBotId(null);
             }
-
-            setUserName(bot.name);
-            setAgentName(`${bot.name} AI`);
-            setAgentBio(bot.summary || `I'm ${bot.name.split(' ')[0]}'s AI twin.`);
-            setGithubUrl(bot.github_url || "");
-            setTwitterUrl(bot.twitter_url || "");
-            setWebsiteUrl(bot.website_url || "");
-            setLinkedinUrl(bot.linkedin_url || "");
-            setProjects(bot.projects || []);
-
-            originalAgentState.current = {
-                name: `${bot.name} AI`,
-                bio: bot.summary || `I'm ${bot.name.split(' ')[0]}'s AI twin.`,
-                githubUrl: bot.github_url || "",
-                twitterUrl: bot.twitter_url || "",
-                websiteUrl: bot.website_url || "",
-                linkedinUrl: bot.linkedin_url || "",
-                projects: bot.projects || []
-            };
         }
-    }, [fetchedBots]);
+    }, [fetchedBots, botId]);
 
     const handlePublishChanges = async () => {
         if (!botId) return;
@@ -222,10 +230,20 @@ export default function CandidateActiveDashboard() {
     const [chatInput, setChatInput] = React.useState("");
     const [isStreaming, setIsStreaming] = React.useState(false);
     const chatEndRef = React.useRef<HTMLDivElement>(null);
+    const chatScrollContainerRef = React.useRef<HTMLDivElement>(null);
 
-    // Auto-scroll chat
+    // Smart auto-scroll logic
     React.useEffect(() => {
-        chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        const container = chatScrollContainerRef.current;
+        if (!container) return;
+
+        // Is user already near the bottom? Expand to 150px to combat jumping
+        const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150;
+
+        if (isNearBottom) {
+            // Apply instant, direct scroll assignment to bypass browser css animation curve bugs during stream
+            container.scrollTop = container.scrollHeight;
+        }
     }, [chatMessages, isStreaming]);
 
     // Strip <think> tags from LLM responses (same logic as backend strip_think_tags)
@@ -268,10 +286,12 @@ export default function CandidateActiveDashboard() {
                 const chunk = decoder.decode(value, { stream: true });
                 fullText += chunk;
                 const finalText = strip(fullText);
-                setChatMessages(prev => {
-                    const updated = [...prev];
-                    updated[updated.length - 1] = { role: 'assistant', text: finalText };
-                    return updated;
+                React.startTransition(() => {
+                    setChatMessages(prev => {
+                        const updated = [...prev];
+                        updated[updated.length - 1] = { role: 'assistant', text: finalText };
+                        return updated;
+                    });
                 });
             }
         } catch (err: any) {
@@ -291,8 +311,8 @@ export default function CandidateActiveDashboard() {
                 <div className="absolute bottom-[-10%] right-[-5%] w-[50%] h-[50%] rounded-full bg-purple-500/20 dark:bg-purple-600/20 blur-[150px] mix-blend-screen animate-pulse shadow-[0_0_120px_rgba(168,85,247,0.3)]" style={{ animationDelay: '2s' }}></div>
             </div>
 
-            {/* Sidebar */}
-            <aside className="w-20 lg:w-64 border-r border-slate-200 dark:border-white/10 flex flex-col bg-white/70 dark:bg-[#0B0E14]/80 backdrop-blur-xl z-10 relative">
+            {/* Sidebar — hidden on mobile, visible from md upward */}
+            <aside className="hidden md:flex w-20 lg:w-64 border-r border-slate-200 dark:border-white/10 flex-col bg-white/70 dark:bg-[#0B0E14]/80 backdrop-blur-xl z-10 relative">
                 <div className="p-8 flex items-center gap-3">
                     <Image src="/butterfly.svg" alt="TwinlyAI" width={32} height={32} className="dark:invert drop-shadow-md" />
                     <h2 className="hidden lg:block text-xl font-bold tracking-tight bg-gradient-to-r from-slate-900 to-slate-500 dark:from-white dark:to-slate-400 bg-clip-text text-transparent">TwinlyAI</h2>
@@ -384,8 +404,8 @@ export default function CandidateActiveDashboard() {
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 flex flex-col min-w-0 bg-transparent z-10 relative">
-                <header className="h-20 border-b border-slate-200 dark:border-white/10 flex items-center justify-between px-10 bg-white/70 dark:bg-[#0B0E14]/80 backdrop-blur-md sticky top-0 z-20">
+            <main className="flex-1 flex flex-col min-w-0 bg-transparent z-10 relative pb-20 md:pb-0">
+                <header className="h-16 md:h-20 border-b border-slate-200 dark:border-white/10 flex items-center justify-between px-4 md:px-10 bg-white/70 dark:bg-[#0B0E14]/80 backdrop-blur-md sticky top-0 z-20">
                     <div className="flex items-center gap-4">
                         <h1 className="text-xl font-semibold text-slate-900 dark:text-white capitalize">
                             {activeTab === 'dashboard' ? 'Agent Profile' : activeTab}
@@ -415,11 +435,11 @@ export default function CandidateActiveDashboard() {
                 <div className="flex-1 overflow-y-auto p-10 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-white/20 scrollbar-track-transparent">
                     <div className="max-w-6xl mx-auto">
 
-                        {/* Tab: Dashboard */}
-                        {activeTab === 'dashboard' && (
+                        {/* Tab: Dashboard or Mirror */}
+                        {(activeTab === 'dashboard' || activeTab === 'mirror') && (
                             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in fade-in duration-300 items-start">
                                 {/* Left Column: Settings */}
-                                <div className="col-span-12 lg:col-span-7 space-y-10">
+                                <div className={`col-span-12 lg:col-span-7 space-y-10 ${activeTab === 'mirror' ? 'hidden lg:block' : 'block'}`}>
                                     {/* Identity Config */}
                                     <section className="bg-white/80 dark:bg-[#1C2128]/80 backdrop-blur-md border border-slate-200 dark:border-white/10 shadow-sm rounded-3xl p-8">
                                         <div className="flex items-center gap-3 mb-8">
@@ -638,8 +658,8 @@ export default function CandidateActiveDashboard() {
                                 </div>
 
                                 {/* Right Column: The Mirror Chat UI */}
-                                <div className="col-span-12 lg:col-span-5">
-                                    <div className="bg-white/90 dark:bg-[#1C2128]/90 backdrop-blur-xl border border-slate-200 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] rounded-[32px] h-[calc(100vh-160px)] min-h-[500px] max-h-[800px] flex flex-col overflow-hidden sticky top-28">
+                                <div className={`col-span-12 lg:col-span-5 ${activeTab === 'dashboard' ? 'hidden lg:block' : 'block'}`}>
+                                    <div className="bg-white/90 dark:bg-[#1C2128]/90 backdrop-blur-xl border border-slate-200 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] rounded-[32px] h-[calc(100vh-160px)] md:h-[calc(100vh-160px)] min-h-[500px] max-h-[800px] flex flex-col overflow-hidden sticky top-28">
                                         <div className="p-6 border-b border-slate-200 dark:border-white/10 bg-transparent flex items-center justify-between">
                                             <div className="flex items-center gap-4">
                                                 <div className="w-2.5 h-2.5 bg-green-500 dark:bg-green-400 rounded-full shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
@@ -653,7 +673,11 @@ export default function CandidateActiveDashboard() {
                                             </button>
                                         </div>
 
-                                        <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-white/20 scrollbar-track-transparent bg-slate-50/50 dark:bg-[#0B0E14]/40">
+                                        <div
+                                            ref={chatScrollContainerRef}
+                                            className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-white/20 scrollbar-track-transparent bg-slate-50/50 dark:bg-[#0B0E14]/40"
+                                            style={{ overflowAnchor: "auto" }}
+                                        >
                                             {chatMessages.length === 0 && (
                                                 <div className="h-full flex items-center justify-center text-center">
                                                     <p className="text-slate-400 dark:text-slate-500 text-sm">Start a conversation to preview your AI twin&apos;s responses.</p>
@@ -671,8 +695,14 @@ export default function CandidateActiveDashboard() {
                                                     ) : (
                                                         <>
                                                             <div className="flex items-end gap-2 w-full">
-                                                                <div className="bg-white dark:bg-[#2A303C] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-white/5 rounded-[22px] rounded-bl-[6px] px-4 py-2.5 text-[15px] leading-relaxed max-w-[85%] shadow-sm whitespace-pre-wrap">
-                                                                    {msg.text || (
+                                                                <div className="bg-white dark:bg-[#2A303C] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-white/5 rounded-[22px] rounded-bl-[6px] px-5 py-3 text-[15px] leading-relaxed max-w-[90%] shadow-sm">
+                                                                    {msg.text ? (
+                                                                        <div className="prose dark:prose-invert prose-sm max-w-none prose-p:leading-relaxed prose-pre:bg-slate-800 prose-pre:text-slate-100">
+                                                                            <ReactMarkdown>
+                                                                                {msg.text}
+                                                                            </ReactMarkdown>
+                                                                        </div>
+                                                                    ) : (
                                                                         <span className="flex items-center gap-2 py-1 text-slate-500 dark:text-slate-400 italic text-sm">
                                                                             <span className="flex gap-1">
                                                                                 <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" />
@@ -778,7 +808,30 @@ export default function CandidateActiveDashboard() {
 
                         {/* Tab: Settings */}
                         {activeTab === 'settings' && (
-                            <div className="max-w-3xl space-y-8 animate-in fade-in duration-300">
+                            <div className="max-w-3xl space-y-8 animate-in fade-in duration-300 pb-12">
+                                <section className="bg-white/80 dark:bg-[#1C2128]/80 backdrop-blur-md border border-slate-200 dark:border-white/10 shadow-sm rounded-3xl p-8">
+                                    <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-6">Account</h3>
+                                    <div className="space-y-4">
+                                        <button
+                                            onClick={logout}
+                                            className="w-full flex items-center justify-between p-4 bg-red-50 dark:bg-red-500/5 rounded-2xl border border-red-100 dark:border-red-500/10 hover:bg-red-100 dark:hover:bg-red-500/10 transition-colors group"
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-10 h-10 rounded-full bg-white dark:bg-[#1C2128] flex items-center justify-center text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/20 shadow-sm">
+                                                    <LogOut size={18} />
+                                                </div>
+                                                <div className="text-left">
+                                                    <h4 className="font-semibold text-sm text-red-700 dark:text-red-400">Sign Out</h4>
+                                                    <p className="text-xs text-red-600/60 dark:text-red-400/60 mt-0.5">Logout from your account securely.</p>
+                                                </div>
+                                            </div>
+                                            <div className="p-2 rounded-full bg-white dark:bg-[#1C2128] border border-red-100 dark:border-red-500/10 shadow-sm">
+                                                <LogOut size={14} className="text-red-400 rotate-180" />
+                                            </div>
+                                        </button>
+                                    </div>
+                                </section>
+
                                 <section className="bg-white/80 dark:bg-[#1C2128]/80 backdrop-blur-md border border-slate-200 dark:border-white/10 shadow-sm rounded-3xl p-8">
                                     <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-6">Appearance</h3>
                                     <div className="space-y-4">
@@ -851,6 +904,50 @@ export default function CandidateActiveDashboard() {
                     </div>
                 </div>
             </main>
+
+            {/* Mobile Bottom Tab Bar — md:hidden so it only shows on small screens */}
+            <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 h-16 bg-white/95 dark:bg-[#0B0E14]/95 backdrop-blur-xl border-t border-slate-200 dark:border-white/10 flex items-center justify-around px-2 safe-area-inset-bottom">
+                <button
+                    onClick={() => safeTabChange('dashboard')}
+                    className={`flex flex-col items-center justify-center flex-1 h-full gap-1 transition-colors min-h-[44px] ${activeTab === 'dashboard' ? 'text-blue-600 dark:text-purple-400' : 'text-slate-400 dark:text-slate-500'}`}
+                    aria-label="Dashboard"
+                >
+                    <LayoutDashboard size={22} />
+                    <span className="text-[10px] font-semibold">Profile</span>
+                </button>
+                <button
+                    onClick={() => safeTabChange('mirror')}
+                    className={`flex flex-col items-center justify-center flex-1 h-full gap-1 transition-colors min-h-[44px] ${activeTab === 'mirror' ? 'text-blue-600 dark:text-purple-400' : 'text-slate-400 dark:text-slate-500'}`}
+                    aria-label="Mirror"
+                >
+                    <Sparkles size={22} />
+                    <span className="text-[10px] font-semibold">Mirror</span>
+                </button>
+                <button
+                    onClick={() => safeTabChange('analytics')}
+                    className={`flex flex-col items-center justify-center flex-1 h-full gap-1 transition-colors min-h-[44px] ${activeTab === 'analytics' ? 'text-blue-600 dark:text-purple-400' : 'text-slate-400 dark:text-slate-500'}`}
+                    aria-label="Analytics"
+                >
+                    <BarChart3 size={22} />
+                    <span className="text-[10px] font-semibold">Analytics</span>
+                </button>
+                <button
+                    onClick={() => safeTabChange('history')}
+                    className={`flex flex-col items-center justify-center flex-1 h-full gap-1 transition-colors min-h-[44px] ${activeTab === 'history' ? 'text-blue-600 dark:text-purple-400' : 'text-slate-400 dark:text-slate-500'}`}
+                    aria-label="History"
+                >
+                    <History size={22} />
+                    <span className="text-[10px] font-semibold">History</span>
+                </button>
+                <button
+                    onClick={() => safeTabChange('settings')}
+                    className={`flex flex-col items-center justify-center flex-1 h-full gap-1 transition-colors min-h-[44px] ${activeTab === 'settings' ? 'text-blue-600 dark:text-purple-400' : 'text-slate-400 dark:text-slate-500'}`}
+                    aria-label="Settings"
+                >
+                    <Settings size={22} />
+                    <span className="text-[10px] font-semibold">Settings</span>
+                </button>
+            </nav>
         </div>
     );
 }

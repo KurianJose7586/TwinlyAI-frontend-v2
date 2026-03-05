@@ -98,7 +98,7 @@ export default function LandingPage() {
 
         <ContainerScroll
           titleComponent={
-            <div className="flex flex-col items-center pb-8 pt-8 md:pt-20">
+            <div className="flex flex-col items-center pb-8 pt-28 md:pt-20">
 
               <motion.h1
                 className="text-[64px] md:text-[88px] font-bold tracking-tighter text-[var(--text-main)] leading-[0.95] mb-8"

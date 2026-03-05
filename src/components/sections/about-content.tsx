@@ -261,15 +261,12 @@ export function AboutContent() {
 
                             <div className="flex flex-col md:flex-row items-center gap-16 relative z-10">
                                 <div className="w-56 h-56 rounded-[48px] overflow-hidden flex-shrink-0 border-4 border-slate-800 shadow-2xl">
-                                    {/* Using standard img tag for external URL if not configured in next/config, 
-                      or ideally Next/Image if domain is allowed. 
-                      Safest for this snippet is img to avoid config errors, but I'll try Next Image with unoptimized if needed. 
-                      Actually, better to use standard img for external arbitrary URLs unless I know I can add to config.
-                  */}
-                                    <img
+                                    <Image
                                         alt="Kurian Jose"
                                         className="w-full h-full object-cover"
-                                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuAZYBopkQtsD6DpYCe0elJbzIcoN_cfaP75-DYyve21jZkREVKIuoGj4y4RIeVGO7t1EmuPtB0yUy0EKEvoOHVcQoZCOgiyCKYkMz9lFLOciWPLU1ShpKPpQONSHLjg8GcEo3hNRl1BSIooGEtwdZej_V5-XvPgrjF20AlMxqOOFLJT410-gGjpjxeV-9XthnsAGUqvXoUBJcwauyvtSyRriHjlCAVpeauSyD960LRnTPVj8ESqa1r-4UFbwHT29D_BnHct6aWzGSCf"
+                                        src="/Kurian-photo.jpg"
+                                        width={224}
+                                        height={224}
                                     />
                                 </div>
                                 <div className="flex-1 text-center md:text-left">

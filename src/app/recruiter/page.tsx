@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
+import { motion } from "framer-motion";
 import {
     Search,
     Bell,
@@ -40,10 +41,13 @@ import {
     Clock,
     Loader2,
     Sun,
-    Moon
+    Moon,
+    LayoutDashboard,
+    Users,
+    Megaphone,
+    MessageSquare,
 } from "lucide-react";
 import { useTheme } from "next-themes";
-import { Footer } from "@/components/layout/footer";
 import api from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { useUserProfile } from "@/hooks/useUser";
@@ -108,28 +112,37 @@ const generateDoodles = (seedString: string) => {
     );
 };
 
-const CandidateSkeleton = () => (
-    <div className="bg-white dark:bg-[#1C2128] rounded-2xl border border-slate-200 dark:border-white/10 p-6 shadow-sm flex flex-col relative overflow-hidden animate-pulse h-[400px]">
-        <div className="flex justify-between items-start mb-4">
-            <div className="w-14 h-14 rounded-full bg-slate-200 dark:bg-white/10"></div>
-            <div className="w-20 h-6 rounded-full bg-slate-200 dark:bg-white/10"></div>
-        </div>
-        <div className="flex-1 space-y-3">
-            <div className="h-5 bg-slate-200 dark:bg-white/10 rounded w-3/4"></div>
-            <div className="h-4 bg-slate-200 dark:bg-white/10 rounded w-1/2 mb-4"></div>
-            <div className="h-4 bg-slate-200 dark:bg-white/10 rounded w-1/3 mb-2"></div>
-            <div className="h-4 bg-slate-200 dark:bg-white/10 rounded w-2/3 mb-4"></div>
-            <div className="h-16 bg-slate-200 dark:bg-white/10 rounded-xl mb-4 mt-2"></div>
-            <div className="flex gap-2">
-                <div className="h-5 w-16 bg-slate-200 dark:bg-white/10 rounded"></div>
-                <div className="h-5 w-16 bg-slate-200 dark:bg-white/10 rounded"></div>
+const CandidateSkeleton = ({ index = 0 }: { index?: number }) => (
+    <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: index * 0.05, duration: 0.4, ease: "easeOut" }}
+        className="bg-white dark:bg-[#1C2128] rounded-2xl border border-slate-200 dark:border-white/10 p-6 flex flex-col relative h-[400px] shadow-sm"
+    >
+        <div className="animate-pulse flex flex-col h-full">
+            <div className="flex justify-between items-start mb-6">
+                <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-white/5 border border-slate-200/50 dark:border-white/5"></div>
+                <div className="w-20 h-6 rounded-full bg-slate-100 dark:bg-white/5 border border-slate-200/50 dark:border-white/5"></div>
+            </div>
+            <div className="flex-1 space-y-5">
+                <div className="space-y-3">
+                    <div className="h-5 bg-slate-100 dark:bg-white/5 rounded-lg w-3/4"></div>
+                    <div className="h-4 bg-slate-100 dark:bg-white/5 rounded-lg w-1/2"></div>
+                </div>
+                <div className="h-4 bg-slate-100 dark:bg-white/5 rounded-lg w-1/3"></div>
+                <div className="h-20 bg-slate-50 dark:bg-[#0B0E14] rounded-xl border border-slate-200/50 dark:border-white/5 mt-4"></div>
+                <div className="flex gap-2">
+                    <div className="h-6 w-16 bg-slate-100 dark:bg-white/5 rounded-md"></div>
+                    <div className="h-6 w-20 bg-slate-100 dark:bg-white/5 rounded-md"></div>
+                    <div className="h-6 w-14 bg-slate-100 dark:bg-white/5 rounded-md"></div>
+                </div>
+            </div>
+            <div className="flex gap-3 mt-6 pt-4 border-t border-slate-100 dark:border-white/5">
+                <div className="h-10 flex-1 bg-slate-100 dark:bg-white/5 rounded-xl border border-slate-200/50 dark:border-white/5"></div>
+                <div className="h-10 flex-1 bg-slate-100 dark:bg-white/5 rounded-xl border border-slate-200/50 dark:border-white/5"></div>
             </div>
         </div>
-        <div className="flex gap-2 mt-6">
-            <div className="h-9 flex-1 bg-slate-200 dark:bg-white/10 rounded-lg"></div>
-            <div className="h-9 flex-1 bg-slate-200 dark:bg-white/10 rounded-lg"></div>
-        </div>
-    </div>
+    </motion.div>
 );
 
 function RecruiterDashboardContent() {
@@ -142,9 +155,10 @@ function RecruiterDashboardContent() {
     const [currentPage, setCurrentPage] = useState(1);
     const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
     const [mounted, setMounted] = useState(false);
+    const [initialSearchDone, setInitialSearchDone] = useState(false);
+    const [activeTab, setActiveTab] = useState('candidates'); // 'overview' | 'candidates' | 'campaigns' | 'chat' | 'profile'
 
     const { mutateAsync: searchCandidates, isPending: isSearching } = useSearchCandidates();
-    const { data: initialCandidatesData, isLoading: isLoadingInitial } = useCandidates();
 
     // Search state
     const [searchQuery, setSearchQuery] = useState("");
@@ -159,41 +173,64 @@ function RecruiterDashboardContent() {
     const ITEMS_PER_PAGE = 12;
 
     useEffect(() => {
-        const timeout = setTimeout(() => setMounted(true), 0);
+        const timeout = setTimeout(() => {
+            setMounted(true);
+            const keywords = localStorage.getItem("recruiter_keywords");
+            if (keywords && !initialSearchDone) {
+                setSearchQuery(keywords);
+                searchCandidates(keywords)
+                    .then(rawData => {
+                        const mapped = formatCandidates(rawData);
+                        setSearchResults(mapped.length > 0 ? mapped : []);
+                    })
+                    .catch(() => {
+                        setSearchError("Search failed.");
+                        setSearchResults([]);
+                    })
+                    .finally(() => {
+                        setInitialSearchDone(true);
+                    });
+            } else if (!initialSearchDone) {
+                setInitialSearchDone(true);
+            }
+        }, 0);
         return () => clearTimeout(timeout);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // Format backend data into Candidate UI interface
     const formatCandidates = (rawData: any[]): Candidate[] => {
         if (!rawData) return [];
-        return rawData.map((r, i) => ({
-            id: r.id,
-            name: r.name,
-            role: r.summary?.split('.')[0] || "AI Professional",
-            email: "", // Not returned yet by backend
-            linkedin: "",
-            quote: r.summary || "No summary available.",
-            match: r.match_score > 0 ? r.match_score : Math.max(70, 99 - i * 3),
-            matchStyle: i === 0
-                ? "bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-400 border-green-200 dark:border-green-500/20"
-                : "bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-500/20",
-            avatar: AVATARS[i % AVATARS.length],
-            skills: r.skills,
-            resume_url: r.resume_url,
-            thumbnail_url: r.thumbnail_url
-        }));
+        return rawData.map((r, i) => {
+            const charCode = r.id ? String(r.id).charCodeAt(String(r.id).length - 1) : i;
+            return {
+                id: r.id,
+                name: r.name,
+                role: r.summary?.split('.')[0] || "AI Professional",
+                email: "", // Not returned yet by backend
+                linkedin: "",
+                quote: r.summary || "No summary available.",
+                match: r.match_score > 0 ? r.match_score : Math.max(70, 99 - i * 3),
+                matchStyle: i === 0
+                    ? "bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-400 border-green-200 dark:border-green-500/20"
+                    : "bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-500/20",
+                avatar: r.avatar_url || AVATARS[charCode % AVATARS.length],
+                skills: r.skills,
+                resume_url: r.resume_url,
+                thumbnail_url: r.thumbnail_url
+            };
+        });
     };
 
-    // Use search results if available, otherwise fallback to initially loaded candidates
+    // Use search results if available, otherwise it's empty
     const displayCandidates = useMemo(() => {
-        const raw = searchResults !== null ? searchResults : formatCandidates(initialCandidatesData || []);
-        return raw;
-    }, [searchResults, initialCandidatesData]);
+        return searchResults !== null ? searchResults : [];
+    }, [searchResults]);
 
     const candidateIdParam = searchParams?.get('candidate');
 
     useEffect(() => {
-        if (!mounted || isLoadingInitial) return;
+        if (!mounted || !initialSearchDone) return;
         if (candidateIdParam && displayCandidates.length > 0) {
             const candidate = displayCandidates.find(c => c.id === candidateIdParam);
             if (candidate) {
@@ -202,7 +239,7 @@ function RecruiterDashboardContent() {
         } else if (!candidateIdParam) {
             setSelectedCandidate(null);
         }
-    }, [candidateIdParam, displayCandidates, isLoadingInitial, mounted]);
+    }, [candidateIdParam, displayCandidates, initialSearchDone, mounted]);
 
     const openCandidateModal = (candidate: Candidate) => {
         setSelectedCandidate(candidate);
@@ -261,7 +298,7 @@ function RecruiterDashboardContent() {
     };
 
     return (
-        <div className="min-h-screen flex flex-col bg-slate-100 dark:bg-[#0B0E14] text-slate-900 dark:text-white font-sans antialiased relative overflow-hidden transition-colors duration-300">
+        <div className="min-h-screen flex flex-col bg-slate-100 dark:bg-[#0B0E14] text-slate-900 dark:text-white font-sans antialiased relative transition-colors duration-300">
             {/* Background Orbs */}
             <div className="fixed inset-0 pointer-events-none overflow-hidden z-0 opacity-0 dark:opacity-100 transition-opacity duration-300">
                 <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-blue-900/20 blur-[120px]" />
@@ -270,8 +307,8 @@ function RecruiterDashboardContent() {
 
             {/* Header */}
             <header className="flex items-center justify-between border-b border-transparent dark:border-white/5 px-8 py-4 bg-slate-100/80 dark:bg-[#0B0E14]/80 backdrop-blur-md sticky top-0 z-50 transition-colors duration-300 relative z-50">
-                <div className="flex items-center gap-6">
-                    <Link href="/" className="flex items-center gap-2">
+                <div className="flex items-center gap-6 overflow-hidden">
+                    <Link href="/" className="flex items-center gap-2 shrink-0">
                         <Image
                             src="/butterfly.svg"
                             alt="TwinlyAI Logo"
@@ -279,14 +316,36 @@ function RecruiterDashboardContent() {
                             height={24}
                             className="w-6 h-6"
                         />
-                        <h2 className="text-[17px] font-semibold tracking-tight text-slate-900 dark:text-white">
+                        <h2 className="text-[17px] font-semibold tracking-tight text-slate-900 dark:text-white hidden sm:block">
                             Twinly<span className="font-light">AI</span>
                         </h2>
                     </Link>
-                    <nav className="hidden md:flex items-center gap-6 ml-4">
-                        <Link className="text-[14px] font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors" href="/recruiter" onClick={(e) => { e.preventDefault(); alert("Overview dashboard is coming soon. Using Candidates view as default."); }}>Overview</Link>
-                        <Link className="text-[14px] font-semibold text-slate-900 dark:text-white relative after:content-[''] after:absolute after:-bottom-[19px] after:left-0 after:w-full after:h-[2px] after:bg-blue-600 dark:after:bg-purple-500" href="/recruiter">Candidates</Link>
-                        <Link className="text-[14px] font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors" href="/recruiter" onClick={(e) => { e.preventDefault(); alert("Campaign management is coming soon."); }}>Campaigns</Link>
+                    <nav className="flex items-center gap-4 sm:gap-6 overflow-x-auto whitespace-nowrap scrollbar-hide pr-4 min-w-0 hidden md:flex">
+                        <button
+                            className={`text-[14px] font-medium transition-colors py-2 ${activeTab === 'overview' ? 'text-slate-900 dark:text-white relative after:content-[""] after:absolute after:-bottom-[19px] after:left-0 after:w-full after:h-[2px] after:bg-blue-600 dark:after:bg-purple-500' : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'}`}
+                            onClick={() => { setActiveTab('overview'); alert("Overview dashboard is coming soon."); }}
+                        >
+                            Overview
+                        </button>
+                        <button
+                            className={`text-[14px] font-medium transition-colors py-2 ${activeTab === 'candidates' ? 'text-slate-900 dark:text-white relative after:content-[""] after:absolute after:-bottom-[19px] after:left-0 after:w-full after:h-[2px] after:bg-blue-600 dark:after:bg-purple-500' : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'}`}
+                            onClick={() => setActiveTab('candidates')}
+                        >
+                            Candidates
+                        </button>
+                        <button
+                            className={`text-[14px] font-medium transition-colors py-2 ${activeTab === 'campaigns' ? 'text-slate-900 dark:text-white relative after:content-[""] after:absolute after:-bottom-[19px] after:left-0 after:w-full after:h-[2px] after:bg-blue-600 dark:after:bg-purple-500' : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'}`}
+                            onClick={() => { setActiveTab('campaigns'); alert("Campaign management is coming soon."); }}
+                        >
+                            Campaigns
+                        </button>
+                        <Link
+                            href="/recruiter/chat"
+                            className={`text-[14px] font-medium transition-colors py-2 ${activeTab === 'chat' ? 'text-slate-900 dark:text-white relative after:content-[""] after:absolute after:-bottom-[19px] after:left-0 after:w-full after:h-[2px] after:bg-blue-600 dark:after:bg-purple-500' : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'}`}
+                            onClick={() => setActiveTab('chat')}
+                        >
+                            Chats
+                        </Link>
                     </nav>
                 </div>
                 <div className="flex items-center gap-4 relative">
@@ -409,10 +468,10 @@ function RecruiterDashboardContent() {
                 </div>
             </header>
 
-            <main className="flex-1 max-w-7xl mx-auto w-full px-8 py-12 relative z-10">
-                <div className="mb-10 text-center">
-                    <h1 className="text-slate-900 dark:text-white text-4xl font-extrabold tracking-tight mb-3">Find your next hire</h1>
-                    <p className="text-slate-500 dark:text-slate-400 text-lg font-normal">Intelligent semantic search for top AI talent.</p>
+            <main className="flex-1 max-w-7xl mx-auto w-full px-6 sm:px-8 py-8 sm:py-12 relative z-10 pb-24 md:pb-12">
+                <div className="mb-8 sm:mb-10 text-center">
+                    <h1 className="text-slate-900 dark:text-white text-3xl sm:text-4xl font-extrabold tracking-tight mb-3">Find your next hire</h1>
+                    <p className="text-slate-500 dark:text-slate-400 text-base sm:text-lg font-normal px-4">Intelligent semantic search for top AI talent.</p>
                 </div>
 
                 <div className="max-w-3xl mx-auto mb-12">
@@ -423,8 +482,8 @@ function RecruiterDashboardContent() {
                                 : <Search className="text-blue-600 dark:text-purple-500 w-6 h-6" />}
                         </div>
                         <input
-                            className="w-full h-16 pl-14 pr-32 bg-white dark:bg-[#1C2128] border border-slate-200 dark:border-white/10 rounded-2xl shadow-sm focus:ring-2 focus:ring-blue-600/20 dark:focus:ring-purple-500/20 focus:border-blue-600 dark:focus:border-purple-500 focus:outline-none text-xl font-medium text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-all"
-                            placeholder="Search for a Python dev with LLM experience..."
+                            className="w-full h-14 sm:h-16 pl-12 sm:pl-14 pr-28 sm:pr-32 bg-white dark:bg-[#1C2128] border border-slate-200 dark:border-white/10 rounded-2xl shadow-sm focus:ring-2 focus:ring-blue-600/20 dark:focus:ring-purple-500/20 focus:border-blue-600 dark:focus:border-purple-500 focus:outline-none text-lg sm:text-xl font-medium text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-all"
+                            placeholder="Frontend dev, ML engineer..."
                             type="text"
                             value={searchQuery}
                             onChange={e => setSearchQuery(e.target.value)}
@@ -472,19 +531,23 @@ function RecruiterDashboardContent() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {(isLoadingInitial || (isSearching && searchResults === null)) ? (
-                        Array.from({ length: 8 }).map((_, i) => <CandidateSkeleton key={i} />)
+                    {isSearching || !initialSearchDone ? (
+                        Array.from({ length: 8 }).map((_, i) => (
+                            <CandidateSkeleton key={i} index={i} />
+                        ))
+                    ) : searchError ? (
+                        <p className="col-span-full text-center text-red-500">{searchError}</p>
                     ) : (
                         currentCandidates.map((candidate) => (
                             <div key={candidate.id} onClick={() => openCandidateModal(candidate)} className="bg-white dark:bg-[#1C2128] rounded-2xl border border-slate-200 dark:border-white/10 p-6 shadow-sm hover:shadow-md dark:shadow-none hover:border-blue-500/30 dark:hover:border-purple-500/50 transition-all group flex flex-col relative overflow-hidden cursor-pointer">
                                 <div className="flex justify-between items-start mb-4">
                                     <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-slate-100 dark:border-white/10 bg-slate-100 dark:bg-[#0B0E14] relative z-10">
-                                        <img src={candidate.avatar} alt={candidate.name} className="w-full h-full object-cover" />
+                                        <img src={candidate.avatar || "https://api.dicebear.com/7.x/notionists/svg?seed=fallback"} alt={candidate.name} className="w-full h-full object-cover" />
                                     </div>
                                     {candidate.thumbnail_url && (
                                         <div className="absolute right-0 top-0 w-24 h-32 opacity-20 group-hover:opacity-40 transition-opacity pointer-events-none rotate-12 translate-x-4 -translate-y-4">
                                             <img
-                                                src={candidate.thumbnail_url}
+                                                src={candidate.thumbnail_url || undefined}
                                                 alt="Resume Preview"
                                                 className="w-full h-full object-cover rounded-lg shadow-2xl border border-white/20"
                                             />
@@ -540,7 +603,7 @@ function RecruiterDashboardContent() {
                     )}
                 </div>
 
-                {!isLoadingInitial && !isSearching && displayCandidates.length === 0 && searchResults !== null && (
+                {!isSearching && initialSearchDone && displayCandidates.length === 0 && searchResults !== null && (
                     <div className="py-20 flex flex-col items-center justify-center text-center">
                         <div className="w-24 h-24 bg-slate-100 dark:bg-white/5 rounded-full flex items-center justify-center mb-6 text-slate-400">
                             <Search size={32} />
@@ -555,14 +618,14 @@ function RecruiterDashboardContent() {
                     </div>
                 )}
 
-                {!isLoadingInitial && !isSearching && displayCandidates.length === 0 && searchResults === null && (
+                {!isSearching && initialSearchDone && displayCandidates.length === 0 && searchResults === null && (
                     <div className="py-20 flex flex-col items-center justify-center text-center">
                         <div className="w-24 h-24 bg-slate-100 dark:bg-white/5 rounded-full flex items-center justify-center mb-6 text-slate-400">
                             <Briefcase size={32} />
                         </div>
-                        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">No candidates available</h3>
+                        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Start your search</h3>
                         <p className="text-slate-500 dark:text-slate-400 max-w-md">
-                            It looks like there are no candidates in the system right now. Wait for candidates to join.
+                            Use the search bar above to look for the perfect candidates based on skills, roles, or keywords.
                         </p>
                     </div>
                 )}
@@ -601,64 +664,47 @@ function RecruiterDashboardContent() {
                     </div>
                 )}
 
-                <div className="mt-20 pt-8 border-t border-slate-200 dark:border-white/10 flex flex-col md:flex-row items-center justify-between text-[11px] font-medium tracking-tight text-slate-500 dark:text-slate-500 uppercase gap-4 mb-20 relative z-10">
-                    <div className="flex items-center gap-4">
-                        <span className="flex items-center gap-1.5">
-                            <span className="h-1.5 w-1.5 bg-green-500 rounded-full"></span>
-                            Service Operational
-                        </span>
-                        <span className="h-1 w-1 bg-slate-300 dark:bg-white/20 rounded-full"></span>
-                        <span>{displayCandidates.length.toLocaleString()} Candidates Processed</span>
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <span>Last Update: 2m ago</span>
-                        <span className="h-1 w-1 bg-slate-300 dark:bg-white/20 rounded-full"></span>
-                        <span>AI Analysis Engine v2.4</span>
-                        <span className="h-1 w-1 bg-slate-300 dark:bg-white/20 rounded-full"></span>
-                        <span>Designed in Lajpat Nagar</span>
-                    </div>
-                </div>
             </main>
 
             {/* Candidate Profile Modal */}
             {mounted && selectedCandidate && createPortal(
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+                <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-6 overflow-hidden">
                     <div className="absolute inset-0 bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm transition-opacity" onClick={closeCandidateModal}></div>
-                    <div className="relative w-full max-w-2xl bg-white dark:bg-[#1C2128] rounded-3xl shadow-2xl border border-slate-200 dark:border-white/10 flex flex-col max-h-[90vh] overflow-y-auto custom-scrollbar animate-in fade-in zoom-in-95 duration-200">
-                        {/* Header Image / Pattern */}
-                        <div className="h-32 shrink-0 bg-gradient-to-r from-blue-600 to-purple-600 relative rounded-t-3xl overflow-hidden">
+                    <div className="relative w-full max-w-2xl bg-white dark:bg-[#1C2128] rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-200 dark:border-white/10 flex flex-col h-[95vh] sm:h-auto sm:max-h-[90vh] animate-in slide-in-from-bottom-full sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-300">
+                        {/* Header Image / Pattern - Fixed at top */}
+                        <div className="h-32 shrink-0 bg-gradient-to-r from-blue-600 to-purple-600 relative sm:rounded-t-3xl overflow-hidden">
                             {generateDoodles(selectedCandidate.id + selectedCandidate.name)}
                             <button
                                 onClick={closeCandidateModal}
-                                className="absolute top-4 right-4 p-2 bg-black/20 hover:bg-black/40 text-white rounded-full backdrop-blur-md transition-colors z-50"
+                                className="absolute top-4 right-4 p-3 sm:p-2 bg-black/20 hover:bg-black/40 text-white rounded-full backdrop-blur-md transition-colors z-50 flex items-center justify-center min-h-[44px] min-w-[44px]"
                             >
                                 <X size={20} />
                             </button>
                         </div>
 
-                        {/* Avatar & Basic Info */}
-                        <div className="px-8 pb-6 relative">
+                        {/* Modal Content Scrollable Area */}
+                        <div className="overflow-y-auto custom-scrollbar flex-1 px-6 sm:px-8 pb-6 relative pt-0">
                             <div className="flex justify-between items-end -mt-12 mb-6 pointer-events-none">
                                 <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-white dark:border-[#1C2128] bg-slate-100 dark:bg-[#0B0E14] relative z-10 pointer-events-auto">
-                                    <img src={selectedCandidate.avatar} alt={selectedCandidate.name} className="w-full h-full object-cover" />
+                                    <img src={selectedCandidate.avatar || "https://api.dicebear.com/7.x/notionists/svg?seed=fallback"} alt={selectedCandidate.name} className="w-full h-full object-cover" />
                                 </div>
-                                <div className={`px-4 py-1.5 text-xs font-bold rounded-full border pointer-events-auto ${selectedCandidate.matchStyle}`}>
+                                <div className={`px-4 py-1.5 text-xs font-bold rounded-full border pointer-events-auto shadow-sm ${selectedCandidate.matchStyle}`}>
                                     {selectedCandidate.match}% MATCH SCORE
                                 </div>
                             </div>
 
-                            <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white mb-1">{selectedCandidate.name}</h2>
-                            <p className="text-blue-600 dark:text-purple-400 text-lg font-semibold mb-6">{selectedCandidate.role}</p>
+                            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white mb-1">{selectedCandidate.name}</h2>
+                            <p className="text-blue-600 dark:text-purple-400 text-base sm:text-lg font-semibold mb-6">{selectedCandidate.role}</p>
 
-                            <div className="flex flex-wrap gap-4 mb-8">
+                            <div className="flex flex-wrap gap-3 mb-8">
                                 <a href={selectedCandidate.resume_url || "#"} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center h-10 px-4 rounded-full bg-blue-600 dark:bg-purple-600 text-white hover:bg-blue-700 dark:hover:bg-purple-700 transition-colors shadow-sm outline-none focus:ring-2 focus:ring-blue-600/30 gap-2" title="View Resume">
                                     <FileText size={18} />
-                                    <span className="text-xs font-bold">View Resume</span>
+                                    <span className="text-xs font-bold uppercase tracking-wider">Resume</span>
                                 </a>
                                 <a href={`mailto:${selectedCandidate.email}`} className="flex items-center justify-center w-10 h-10 rounded-full bg-slate-50 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 hover:text-blue-600 dark:hover:text-blue-400 transition-colors border border-slate-200 dark:border-white/10 shadow-sm outline-none focus:ring-2 focus:ring-blue-600/30" title={selectedCandidate.email}>
                                     <Mail size={18} />
                                 </a>
-                                <a href={selectedCandidate.linkedin || "#"} onClick={(e) => { if (!selectedCandidate.linkedin) { e.preventDefault(); alert("LinkedIn profile not provided by candidate."); } }} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center w-10 h-10 rounded-full bg-slate-50 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:bg-blue-50 dark:hover:bg-[#0a66c2]/10 hover:text-[#0a66c2] transition-colors border border-slate-200 dark:border-white/10 shadow-sm outline-none focus:ring-2 focus:ring-[#0a66c2]/30" title={selectedCandidate.linkedin || "LinkedIn Profile"}>
+                                <a href={selectedCandidate.linkedin || "#"} onClick={(e) => { if (!selectedCandidate.linkedin) { e.preventDefault(); alert("LinkedIn profile not provided."); } }} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center w-10 h-10 rounded-full bg-slate-50 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:bg-blue-50 dark:hover:bg-[#0a66c2]/10 hover:text-[#0a66c2] transition-colors border border-slate-200 dark:border-white/10 shadow-sm outline-none focus:ring-2 focus:ring-[#0a66c2]/30" title="LinkedIn Profile">
                                     <Linkedin size={18} />
                                 </a>
                                 {selectedCandidate.github_url && (
@@ -666,52 +712,39 @@ function RecruiterDashboardContent() {
                                         <Github size={18} />
                                     </a>
                                 )}
-                                {selectedCandidate.website_url && (
-                                    <a href={selectedCandidate.website_url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center w-10 h-10 rounded-full bg-slate-50 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white transition-colors border border-slate-200 dark:border-white/10 shadow-sm outline-none focus:ring-2 focus:ring-slate-500/30" title="Personal Website">
-                                        <Globe size={18} />
-                                    </a>
-                                )}
-                                {selectedCandidate.twitter_url && (
-                                    <a href={selectedCandidate.twitter_url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center w-10 h-10 rounded-full bg-slate-50 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:bg-blue-50 dark:hover:bg-blue-400/10 hover:text-blue-400 transition-colors border border-slate-200 dark:border-white/10 shadow-sm outline-none focus:ring-2 focus:ring-blue-400/30" title="Twitter Profile">
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
-                                    </a>
-                                )}
                             </div>
 
-                            <div className="space-y-8">
+                            <div className="space-y-8 pb-12">
                                 <div>
-                                    <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-3 flex items-center gap-2">
-                                        <Briefcase size={16} className="text-blue-600 dark:text-purple-500" /> Executive Summary
+                                    <h3 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.1em] mb-4 flex items-center gap-2">
+                                        <Briefcase size={14} className="text-blue-600/50 dark:text-purple-500/50" /> Executive Summary
                                     </h3>
-                                    <p className="text-slate-600 dark:text-slate-400 leading-relaxed bg-slate-50 dark:bg-[#0B0E14]/50 p-4 rounded-xl border border-slate-100 dark:border-white/5 italic">
+                                    <p className="text-[15px] text-slate-600 dark:text-slate-400 leading-relaxed bg-slate-50/50 dark:bg-[#0B0E14]/30 p-5 rounded-2xl border border-slate-100 dark:border-white/5 italic">
                                         &quot;{selectedCandidate.quote}&quot;
                                     </p>
                                 </div>
 
                                 <div>
-                                    <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-3 flex items-center gap-2">
-                                        <FileText size={16} className="text-blue-600 dark:text-purple-500" /> Technical Skills
+                                    <h3 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.1em] mb-4 flex items-center gap-2">
+                                        <FileText size={14} className="text-blue-600/50 dark:text-purple-500/50" /> Core Competencies
                                     </h3>
                                     <div className="flex flex-wrap gap-2">
                                         {selectedCandidate.skills.map((skill: string, index: number) => (
-                                            <span key={index} className="px-3 py-1.5 bg-blue-50 dark:bg-purple-500/10 text-blue-700 dark:text-purple-300 text-xs font-bold rounded-lg border border-blue-100 dark:border-purple-500/20 shadow-sm">
+                                            <span key={index} className="px-3 py-1.5 bg-blue-50/50 dark:bg-purple-500/5 text-blue-700/80 dark:text-purple-300/80 text-[11px] font-bold rounded-lg border border-blue-100/50 dark:border-purple-500/10 shadow-sm uppercase tracking-wide">
                                                 {skill}
                                             </span>
                                         ))}
-                                        <span className="px-3 py-1.5 bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-400 text-xs font-bold rounded-lg border border-slate-200 dark:border-white/10 hidden sm:inline-block">
-                                            +4 more implicit skills
-                                        </span>
                                     </div>
                                 </div>
 
                                 <div>
-                                    <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
-                                        <Code2 size={16} className="text-blue-600 dark:text-purple-500" /> Featured Projects
+                                    <h3 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.1em] mb-5 flex items-center gap-2">
+                                        <Code2 size={14} className="text-blue-600/50 dark:text-purple-500/50" /> Featured Work
                                     </h3>
                                     <div className="space-y-4">
                                         {selectedCandidate.projects && selectedCandidate.projects.length > 0 ? (
                                             selectedCandidate.projects.map((project, idx) => (
-                                                <div key={idx} className="p-4 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5 hover:border-blue-200 dark:hover:border-purple-500/30 transition-colors group/proj">
+                                                <div key={idx} className="p-5 rounded-2xl bg-white dark:bg-white/5 border border-slate-100 dark:border-white/5 hover:border-blue-200/50 dark:hover:border-purple-500/20 transition-all group/proj shadow-sm">
                                                     <div className="flex justify-between items-start mb-2">
                                                         <h4 className="font-bold text-slate-900 dark:text-white text-sm">{project.name}</h4>
                                                         {project.link && (
@@ -724,51 +757,72 @@ function RecruiterDashboardContent() {
                                                 </div>
                                             ))
                                         ) : (
-                                            <p className="text-sm text-slate-500 dark:text-slate-400 italic pl-2">No projects manually added.</p>
+                                            <p className="text-sm text-slate-500 dark:text-slate-400 italic pl-2 opacity-50">No projects manually added.</p>
                                         )}
                                     </div>
                                 </div>
 
                                 <div>
-                                    <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
-                                        <GraduationCap size={16} className="text-blue-600 dark:text-purple-500" /> Simulated Experience
+                                    <h3 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.1em] mb-5 flex items-center gap-2">
+                                        <GraduationCap size={14} className="text-blue-600/50 dark:text-purple-500/50" /> Career Profile
                                     </h3>
-                                    <div className="relative pl-6 border-l-2 border-slate-200 dark:border-white/10 space-y-6">
+                                    <div className="relative pl-6 border-l-2 border-slate-100 dark:border-white/5 space-y-8">
                                         <div className="relative">
-                                            <div className="absolute -left-[31px] top-1 w-4 h-4 rounded-full bg-blue-100 dark:bg-purple-900 border-[3px] border-white dark:border-[#1C2128]"></div>
+                                            <div className="absolute -left-[33px] top-1 w-4 h-4 rounded-full bg-blue-100 dark:bg-purple-900/50 border-[3px] border-white dark:border-[#1C2128]"></div>
                                             <h4 className="font-bold text-slate-900 dark:text-white text-base">Senior AI Engineer</h4>
-                                            <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">TechCorp Global &bull; 2021 - Present</p>
-                                            <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">Led the migration to a transformer-based recommendation engine, improving user engagement by 22%.</p>
+                                            <p className="text-slate-500 dark:text-slate-400 text-[13px] font-medium mb-2">2021 - Present</p>
+                                            <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">Leading large-scale RAG deployments and LLM fine-tuning initiatives for talent acquisition pipelines.</p>
                                         </div>
                                         <div className="relative">
-                                            <div className="absolute -left-[31px] top-1 w-4 h-4 rounded-full bg-slate-200 dark:bg-white/20 border-[3px] border-white dark:border-[#1C2128]"></div>
-                                            <h4 className="font-bold text-slate-900 dark:text-white text-base">Machine Learning Specialist</h4>
-                                            <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">DataWorks Inc &bull; 2018 - 2021</p>
-                                            <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">Developed and deployed computer vision models for automated quality assurance pipelines.</p>
+                                            <div className="absolute -left-[33px] top-1 w-4 h-4 rounded-full bg-slate-100 dark:bg-white/10 border-[3px] border-white dark:border-[#1C2128]"></div>
+                                            <h4 className="font-bold text-slate-900 dark:text-white text-base">Software Architect</h4>
+                                            <p className="text-slate-500 dark:text-slate-400 text-[13px] font-medium mb-2">2018 - 2021</p>
+                                            <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">Designed and implemented cloud-native microservices with a focus on high-availability and security.</p>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Footer Actions */}
-                        <div className="p-6 border-t border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-[#0B0E14]/50 flex gap-4 mt-auto">
-                            <Link href="/recruiter/chat" className="flex-1">
-                                <button
-                                    onClick={() => {
-                                        if (selectedCandidate) {
-                                            localStorage.setItem("recruiter_chat_botId", selectedCandidate.id);
-                                            localStorage.setItem("recruiter_chat_botName", selectedCandidate.name);
+                        {/* Footer Actions - Sticky bottom on any screen for reachability */}
+                        <div className="p-6 shrink-0 border-t border-slate-200 dark:border-white/10 bg-white/80 dark:bg-[#1C2128]/80 backdrop-blur-xl flex flex-col sm:flex-row gap-3 z-[70]">
+                            <button
+                                onClick={async () => {
+                                    if (selectedCandidate) {
+                                        localStorage.setItem("recruiter_chat_botId", selectedCandidate.id);
+                                        localStorage.setItem("recruiter_chat_botName", selectedCandidate.name);
+
+                                        try {
+                                            const newChat = {
+                                                id: selectedCandidate.id,
+                                                name: selectedCandidate.name,
+                                                role: selectedCandidate.role || "AI Professional",
+                                                avatar: selectedCandidate.avatar,
+                                                lastMessage: "Start a conversation...",
+                                                time: "Just now",
+                                                unread: 0,
+                                                botId: selectedCandidate.id,
+                                                timestamp: Date.now()
+                                            };
+                                            const existingRaw = localStorage.getItem("recruiter_chat_sessions");
+                                            let existing = existingRaw ? JSON.parse(existingRaw) : [];
+                                            existing = existing.filter((c: any) => c.id !== newChat.id);
+                                            existing.unshift(newChat);
+                                            localStorage.setItem("recruiter_chat_sessions", JSON.stringify(existing));
+                                        } catch (e) {
+                                            console.error("Could not save chat session", e);
                                         }
-                                    }}
-                                    className="w-full py-3.5 rounded-xl bg-white dark:bg-[#1C2128] text-slate-700 dark:text-white text-sm font-bold hover:bg-slate-100 dark:hover:bg-white/5 border border-slate-200 dark:border-white/10 transition-colors shadow-sm"
-                                >
-                                    Message Digital Twin
-                                </button>
-                            </Link>
+
+                                        router.push("/recruiter/chat", { scroll: false });
+                                    }
+                                }}
+                                className="flex-1 py-4 px-6 rounded-2xl bg-white dark:bg-white/5 text-slate-700 dark:text-white text-[13px] font-bold hover:bg-slate-50 dark:hover:bg-white/10 border border-slate-200 dark:border-white/10 transition-all shadow-sm active:scale-95 text-center"
+                            >
+                                Message Digital Twin
+                            </button>
                             <Link href="/recruiter/call" className="flex-1">
-                                <button className="w-full py-3.5 rounded-xl bg-blue-600 dark:bg-purple-600 text-white text-sm font-bold hover:bg-blue-700 dark:hover:bg-purple-700 transition-colors shadow-sm shadow-blue-500/20 dark:shadow-purple-500/20">
-                                    Live Voice Interview
+                                <button className="w-full py-4 px-6 rounded-2xl bg-blue-600 dark:bg-purple-600 text-white text-[13px] font-bold hover:bg-blue-700 dark:hover:bg-purple-700 transition-all shadow-lg shadow-blue-500/20 dark:shadow-purple-500/20 active:scale-95">
+                                    Voice Interview
                                 </button>
                             </Link>
                         </div>
@@ -777,7 +831,47 @@ function RecruiterDashboardContent() {
                 document.body
             )}
 
-            <Footer />
+            {/* Mobile Bottom Tab Bar */}
+            <div className="fixed bottom-0 left-0 right-0 h-20 bg-white/80 dark:bg-[#0B0E14]/80 backdrop-blur-xl border-t border-slate-200 dark:border-white/10 flex md:hidden items-center justify-around px-6 z-[60] safe-area-bottom">
+                {[
+                    { id: 'overview', label: 'Home', icon: LayoutDashboard },
+                    { id: 'candidates', label: 'Search', icon: Users },
+                    { id: 'chat', label: 'Chats', icon: MessageSquare },
+                    { id: 'campaigns', label: 'Ads', icon: Megaphone },
+                    { id: 'profile', label: 'Profile', icon: User }
+                ].map((tab) => (
+                    <button
+                        key={tab.id}
+                        onClick={() => {
+                            if (tab.id === 'chat') {
+                                setActiveTab('chat');
+                                router.push('/recruiter/chat');
+                                return;
+                            }
+                            setActiveTab(tab.id);
+                            if (tab.id === 'overview' || tab.id === 'campaigns') {
+                                alert(`${tab.label} is coming soon!`);
+                            }
+                            if (tab.id === 'profile') {
+                                setIsProfileMenuOpen(true);
+                            } else {
+                                setIsProfileMenuOpen(false);
+                            }
+                        }}
+                        className="flex flex-col items-center justify-center gap-1.5 min-w-[64px] transition-all"
+                    >
+                        <div className={`p-2 rounded-xl transition-all duration-300 ${activeTab === tab.id
+                            ? 'bg-blue-600 dark:bg-purple-600 text-white shadow-lg shadow-blue-500/20 dark:shadow-purple-500/20 scale-110'
+                            : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
+                            }`}>
+                            <tab.icon size={22} strokeWidth={activeTab === tab.id ? 2.5 : 2} />
+                        </div>
+                        <span className={`text-[10px] font-bold tracking-tight uppercase ${activeTab === tab.id ? 'text-blue-600 dark:text-purple-400' : 'text-slate-400 dark:text-slate-500'}`}>
+                            {tab.label}
+                        </span>
+                    </button>
+                ))}
+            </div>
         </div>
     );
 }

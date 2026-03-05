@@ -1,43 +1,24 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import { Suspense, useState, useRef, useEffect, startTransition } from "react";
 import Link from "next/link";
 import {
-    Search,
-    Phone,
-    Video,
-    MoreVertical,
-    Send,
-    Smile,
-    ChevronLeft,
-    Loader2
+    ChevronLeft, Search, MoreVertical, Phone, Video, Edit, Send, Smile, Loader2
 } from "lucide-react";
 import { getToken } from "@/lib/auth";
+import ReactMarkdown from "react-markdown";
 
-const DEMO_CHATS = [
-    {
-        id: "1",
-        name: "Sarah Jenkins",
-        role: "AI Infrastructure Lead",
-        avatar: "https://api.dicebear.com/7.x/notionists/svg?seed=Aneka&backgroundColor=fef08a",
-        lastMessage: "I optimized the PyTorch inference pipeline...",
-        time: "10:24 AM",
-        unread: 2,
-        active: true,
-        botId: null as string | null,
-    },
-    {
-        id: "2",
-        name: "Marcus Vane",
-        role: "Data Engineering Architect",
-        avatar: "https://api.dicebear.com/7.x/notionists/svg?seed=Jasper&backgroundColor=bfdbfe",
-        lastMessage: "Yes, we mainly used Pinecone for the vector...",
-        time: "Yesterday",
-        unread: 0,
-        active: false,
-        botId: null as string | null,
-    },
-];
+type ChatSession = {
+    id: string;
+    name: string;
+    role: string;
+    avatar: string;
+    lastMessage: string;
+    time: string;
+    unread: number;
+    active: boolean;
+    botId: string | null;
+};
 
 type ChatMsg = { role: "user" | "assistant"; text: string };
 
@@ -46,7 +27,8 @@ const stripThink = (t: string) => t.replace(/<think>[\s\S]*?<\/think>/g, "").tri
 
 export default function RecruiterChatPage() {
     const [mounted, setMounted] = useState(false);
-    const [activeChatId, setActiveChatId] = useState("1");
+    const [activeChatId, setActiveChatId] = useState("");
+    const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
     const [messages, setMessages] = useState<ChatMsg[]>([]);
     const [input, setInput] = useState("");
     const [isStreaming, setIsStreaming] = useState(false);
@@ -57,20 +39,54 @@ export default function RecruiterChatPage() {
     useEffect(() => {
         setMounted(true);
         const storedBotId = localStorage.getItem("recruiter_chat_botId");
-        const storedBotName = localStorage.getItem("recruiter_chat_botName");
-        if (!storedBotId) return;
+        if (storedBotId) setLiveBotId(storedBotId);
 
-        // Trust the stored ID — errors are caught in sendMessage
-        setLiveBotId(storedBotId);
-        DEMO_CHATS[0].botId = storedBotId;
-        if (storedBotName) DEMO_CHATS[0].name = storedBotName;
+        try {
+            const rawSessions = localStorage.getItem("recruiter_chat_sessions");
+            if (rawSessions) {
+                const parsed = JSON.parse(rawSessions);
+                setChatSessions(parsed);
+                const active = parsed.find((p: any) => p.botId === storedBotId) || parsed[0];
+                if (active) setActiveChatId(active.id);
+            } else if (storedBotId) {
+                const storedBotName = localStorage.getItem("recruiter_chat_botName") || "Candidate";
+                const fallbackSession = {
+                    id: storedBotId,
+                    name: storedBotName,
+                    role: "AI Professional",
+                    avatar: "https://api.dicebear.com/7.x/notionists/svg?seed=fallback",
+                    lastMessage: "Start a conversation...",
+                    time: "Just now",
+                    unread: 0,
+                    active: true,
+                    botId: storedBotId
+                };
+                setChatSessions([fallbackSession]);
+                setActiveChatId(storedBotId);
+            }
+        } catch (e) { console.error(e); }
     }, []);
 
+    const chatScrollContainerRef = useRef<HTMLDivElement>(null);
+
+    // Smart auto-scroll logic
     useEffect(() => {
-        chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        const container = chatScrollContainerRef.current;
+        if (!container) return;
+
+        // Determine if we are near the bottom of the container. 
+        // A threshold of 150px allows for some leniency for fast incoming streams.
+        const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150;
+
+        if (isNearBottom) {
+            // Apply instant, direct scroll assignment to bypass browser css animation curve bugs during stream
+            container.scrollTop = container.scrollHeight;
+        }
     }, [messages, isStreaming]);
 
-    const activeChat = DEMO_CHATS.find(c => c.id === activeChatId) || DEMO_CHATS[0];
+    const activeChat = chatSessions.find(c => c.id === activeChatId) || chatSessions[0] || {
+        id: "", name: "Select a Candidate", role: "", avatar: "https://api.dicebear.com/7.x/notionists/svg?seed=fallback", lastMessage: "", time: "", unread: 0, active: false, botId: null
+    };
     const currentBotId = activeChat.botId || liveBotId;
 
     const sendMessage = async () => {
@@ -106,7 +122,7 @@ export default function RecruiterChatPage() {
                     localStorage.removeItem("recruiter_chat_botId");
                     localStorage.removeItem("recruiter_chat_botName");
                     setLiveBotId(null);
-                    DEMO_CHATS[0].botId = null;
+                    setChatSessions(prev => prev.map(s => s.botId === currentBotId ? { ...s, botId: null } : s));
                     setBotError("Bot not found. Please go back and click Chat on a candidate.");
                     throw new Error("Bot not found. Please go back and select a candidate.");
                 }
@@ -124,12 +140,15 @@ export default function RecruiterChatPage() {
             while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
-                fullText += decoder.decode(value, { stream: true });
-                const cleaned = stripThink(fullText);
-                setMessages(prev => {
-                    const updated = [...prev];
-                    updated[updated.length - 1] = { role: "assistant", text: cleaned };
-                    return updated;
+                const chunk = decoder.decode(value, { stream: true });
+                fullText += chunk;
+                const finalText = stripThink(fullText);
+                startTransition(() => {
+                    setMessages(prev => {
+                        const newMsgs = [...prev];
+                        newMsgs[newMsgs.length - 1] = { role: "assistant", text: finalText };
+                        return newMsgs;
+                    });
                 });
             }
         } catch (err: unknown) {
@@ -146,10 +165,10 @@ export default function RecruiterChatPage() {
 
     return (
         <div className="flex h-screen bg-slate-100 dark:bg-[#0B0E14] text-slate-900 dark:text-white font-sans overflow-hidden transition-colors duration-300">
-            {/* Sidebar List */}
-            <aside className="w-full md:w-80 lg:w-96 border-r border-slate-200 dark:border-white/10 flex flex-col bg-white dark:bg-[#1C2128]">
+            {/* Sidebar List — hidden on mobile when a chat is active */}
+            <aside className={`${activeChatId ? 'hidden md:flex' : 'flex'} w-full md:w-80 lg:w-96 border-r border-slate-200 dark:border-white/10 flex-col bg-white dark:bg-[#1C2128]`}>
                 <div className="p-4 border-b border-slate-200 dark:border-white/10 flex items-center gap-3">
-                    <Link href="/recruiter" className="p-2 -ml-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-full transition-colors">
+                    <Link href="/recruiter" className="p-2 -ml-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-full transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center">
                         <ChevronLeft size={20} className="text-slate-500 dark:text-slate-400" />
                     </Link>
                     <h1 className="text-xl font-bold tracking-tight">Messages</h1>
@@ -167,17 +186,22 @@ export default function RecruiterChatPage() {
                 </div>
 
                 <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-white/20">
-                    {DEMO_CHATS.map((chat) => (
+                    {chatSessions.length === 0 ? (
+                        <div className="p-8 justify-center text-center">
+                            <p className="text-sm text-slate-500">No active chats.</p>
+                            <Link href="/recruiter"><button className="mt-4 text-xs font-bold text-blue-600 bg-blue-50 py-2 px-4 rounded-full min-h-[44px]">Find Candidates</button></Link>
+                        </div>
+                    ) : chatSessions.map((chat) => (
                         <div
                             key={chat.id}
-                            onClick={() => { setActiveChatId(chat.id); setMessages([]); }}
+                            onClick={() => { setActiveChatId(chat.id); setMessages([]); setLiveBotId(chat.botId); localStorage.setItem("recruiter_chat_botId", chat.botId || ""); }}
                             className={`flex items-start gap-4 p-4 cursor-pointer transition-colors border-l-4 ${chat.id === activeChatId ? 'bg-blue-50/50 dark:bg-white/5 border-blue-600 dark:border-purple-500' : 'hover:bg-slate-50 dark:hover:bg-white/5 border-transparent'}`}
                         >
                             <div className="relative shrink-0">
                                 <div className="w-12 h-12 rounded-full overflow-hidden border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-[#0B0E14]">
-                                    <img src={chat.avatar} alt={chat.name} className="w-full h-full object-cover" />
+                                    <img src={chat.avatar || "https://api.dicebear.com/7.x/notionists/svg?seed=fallback"} alt={chat.name} className="w-full h-full object-cover" />
                                 </div>
-                                {chat.active && <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white dark:border-[#1C2128] rounded-full"></div>}
+                                {chat.botId === liveBotId && <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white dark:border-[#1C2128] rounded-full"></div>}
                             </div>
                             <div className="flex-1 min-w-0">
                                 <div className="flex justify-between items-baseline mb-1">
@@ -200,8 +224,8 @@ export default function RecruiterChatPage() {
                 </div>
             </aside>
 
-            {/* Main Chat Area */}
-            <main className="flex-1 flex flex-col min-w-0 bg-[#F8FAFC] dark:bg-[#0B0E14] relative">
+            {/* Main Chat Area — hidden on mobile when no chat is selected */}
+            <main className={`${!activeChatId ? 'hidden md:flex' : 'flex'} flex-1 flex-col min-w-0 bg-[#F8FAFC] dark:bg-[#0B0E14] relative`}>
                 {/* Bot Error Banner */}
                 {botError && (
                     <div className="bg-red-50 dark:bg-red-500/10 border-b border-red-200 dark:border-red-500/20 px-6 py-3 flex items-center justify-between gap-4">
@@ -212,10 +236,18 @@ export default function RecruiterChatPage() {
                     </div>
                 )}
                 {/* Chat Header */}
-                <header className="h-20 border-b border-slate-200 dark:border-white/10 flex items-center justify-between px-6 bg-white/80 dark:bg-[#1C2128]/80 backdrop-blur-md sticky top-0 z-20">
-                    <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-full overflow-hidden border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-[#0B0E14]">
-                            <img src={activeChat.avatar} alt={activeChat.name} className="w-full h-full object-cover" />
+                <header className="h-16 sm:h-20 border-b border-slate-200 dark:border-white/10 flex items-center justify-between px-4 sm:px-6 bg-white/80 dark:bg-[#1C2128]/80 backdrop-blur-md sticky top-0 z-20">
+                    <div className="flex items-center gap-3 sm:gap-4">
+                        {/* Mobile-only Back button — returns to conversation list */}
+                        <button
+                            onClick={() => setActiveChatId("")}
+                            className="md:hidden p-2 -ml-1 hover:bg-slate-100 dark:hover:bg-white/5 rounded-full transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center shrink-0"
+                            aria-label="Back to messages"
+                        >
+                            <ChevronLeft size={22} className="text-slate-500 dark:text-slate-400" />
+                        </button>
+                        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full overflow-hidden border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-[#0B0E14] shrink-0">
+                            <img src={activeChat.avatar || "https://api.dicebear.com/7.x/notionists/svg?seed=fallback"} alt={activeChat.name} className="w-full h-full object-cover" />
                         </div>
                         <div>
                             <div className="flex items-center gap-2">
@@ -246,7 +278,11 @@ export default function RecruiterChatPage() {
                 </header>
 
                 {/* Messages */}
-                <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-white/20">
+                <div
+                    ref={chatScrollContainerRef}
+                    className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-white/20"
+                    style={{ overflowAnchor: "auto" }}
+                >
                     <div className="flex justify-center mb-8">
                         <span className="px-3 py-1 bg-slate-200/50 dark:bg-white/5 rounded-full text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
                             {currentBotId ? "Live session — responses powered by AI" : "Demo — click Chat on a candidate to start a real session"}
@@ -271,11 +307,17 @@ export default function RecruiterChatPage() {
                             <div key={i} className="flex flex-col items-start">
                                 <div className="flex gap-3 max-w-[80%]">
                                     <div className="w-8 h-8 rounded-full overflow-hidden border border-slate-200 dark:border-white/10 shrink-0 mt-auto hidden sm:block">
-                                        <img src={activeChat.avatar} alt={activeChat.name} className="w-full h-full object-cover" />
+                                        <img src={activeChat.avatar || "https://api.dicebear.com/7.x/notionists/svg?seed=fallback"} alt={activeChat.name} className="w-full h-full object-cover" />
                                     </div>
                                     <div className="flex flex-col">
-                                        <div className="bg-white dark:bg-[#1C2128] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-white/5 rounded-[20px] rounded-bl-sm px-5 py-3 text-[15px] leading-relaxed shadow-sm whitespace-pre-wrap">
-                                            {msg.text || (
+                                        <div className="bg-white dark:bg-[#1C2128] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-white/5 rounded-[20px] rounded-bl-sm px-5 py-3 text-[15px] leading-relaxed shadow-sm">
+                                            {msg.text ? (
+                                                <div className="prose dark:prose-invert prose-sm max-w-none prose-p:leading-relaxed prose-pre:bg-slate-800 prose-pre:text-slate-100">
+                                                    <ReactMarkdown>
+                                                        {msg.text}
+                                                    </ReactMarkdown>
+                                                </div>
+                                            ) : (
                                                 <span className="flex gap-1.5 py-1">
                                                     <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" />
                                                     <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: "0.15s" }} />
