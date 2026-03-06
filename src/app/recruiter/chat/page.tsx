@@ -26,7 +26,8 @@ type ChatMsg = { role: "user" | "assistant"; text: string };
 const stripThink = (t: string) => t.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
 
 export default function RecruiterChatPage() {
-    const [mounted, setMounted] = useState(false);
+    const router = import("next/navigation").then(mod => mod.useRouter).then(useRouter => useRouter()); // wait actually need to import it properly.
+
     const [activeChatId, setActiveChatId] = useState("");
     const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
     const [messages, setMessages] = useState<ChatMsg[]>([]);
@@ -262,11 +263,19 @@ export default function RecruiterChatPage() {
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
-                        <Link href="/recruiter/call">
-                            <button className="p-2.5 rounded-full hover:bg-slate-100 dark:hover:bg-white/5 text-slate-600 dark:text-slate-300 transition-colors">
-                                <Phone size={20} />
-                            </button>
-                        </Link>
+                        <button
+                            className="p-2.5 rounded-full hover:bg-slate-100 dark:hover:bg-white/5 text-slate-600 dark:text-slate-300 transition-colors"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                if (currentBotId) {
+                                    localStorage.setItem("recruiter_chat_botId", currentBotId);
+                                    localStorage.setItem("recruiter_chat_botName", activeChat.name);
+                                }
+                                window.location.href = "/recruiter/call"; // Using window.location to ensure fresh mount of the call page state
+                            }}
+                        >
+                            <Phone size={20} />
+                        </button>
                         <button className="p-2.5 rounded-full hover:bg-slate-100 dark:hover:bg-white/5 text-slate-600 dark:text-slate-300 transition-colors">
                             <Video size={20} />
                         </button>

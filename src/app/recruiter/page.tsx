@@ -592,11 +592,20 @@ function RecruiterDashboardContent() {
                                             Chat
                                         </button>
                                     </Link>
-                                    <Link href="/recruiter/call" className="flex-1" onClick={(e) => e.stopPropagation()}>
-                                        <button className="w-full py-2 rounded-lg bg-blue-600 dark:bg-purple-600 text-white text-[13px] font-semibold hover:bg-blue-700 dark:hover:bg-purple-700 transition-colors">
-                                            Call
-                                        </button>
-                                    </Link>
+                                    <button
+                                        className="flex-1 w-full py-2 rounded-lg bg-blue-600 dark:bg-purple-600 text-white text-[13px] font-semibold hover:bg-blue-700 dark:hover:bg-purple-700 transition-colors"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            e.preventDefault();
+                                            if (candidate.id) {
+                                                localStorage.setItem("recruiter_chat_botId", candidate.id);
+                                                localStorage.setItem("recruiter_chat_botName", candidate.name);
+                                            }
+                                            router.push("/recruiter/call");
+                                        }}
+                                    >
+                                        Call
+                                    </button>
                                 </div>
                             </div>
                         ))
@@ -820,11 +829,18 @@ function RecruiterDashboardContent() {
                             >
                                 Message Digital Twin
                             </button>
-                            <Link href="/recruiter/call" className="flex-1">
-                                <button className="w-full py-4 px-6 rounded-2xl bg-blue-600 dark:bg-purple-600 text-white text-[13px] font-bold hover:bg-blue-700 dark:hover:bg-purple-700 transition-all shadow-lg shadow-blue-500/20 dark:shadow-purple-500/20 active:scale-95">
-                                    Voice Interview
-                                </button>
-                            </Link>
+                            <button
+                                onClick={() => {
+                                    if (selectedCandidate) {
+                                        localStorage.setItem("recruiter_chat_botId", selectedCandidate.id);
+                                        localStorage.setItem("recruiter_chat_botName", selectedCandidate.name);
+                                    }
+                                    router.push("/recruiter/call");
+                                }}
+                                className="flex-1 py-4 px-6 rounded-2xl bg-blue-600 dark:bg-purple-600 text-white text-[13px] font-bold hover:bg-blue-700 dark:hover:bg-purple-700 transition-all shadow-lg shadow-blue-500/20 dark:shadow-purple-500/20 active:scale-95 text-center"
+                            >
+                                Voice Interview
+                            </button>
                         </div>
                     </div>
                 </div>,

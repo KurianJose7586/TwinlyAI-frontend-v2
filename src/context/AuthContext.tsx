@@ -83,6 +83,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setStoredUser(u);
         setUser(u);
 
+        // Persist email so sub-pages (e.g. voice call) can display the recruiter's name
+        if (typeof window !== "undefined") {
+            localStorage.setItem("recruiter_email", u.email || email);
+        }
+
         // Navigate based on role — read directly, don't wait for state
         router.push(role === "recruiter" ? "/recruiter" : "/candidate-active");
     };
@@ -102,6 +107,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 "recruiter_chat_botId",
                 "recruiter_chat_botName",
                 "recruiter_keywords",
+                "recruiter_email",
+                "recruiter_name",
                 "onboarding_state"
             ];
             keysToRemove.forEach(k => localStorage.removeItem(k));
