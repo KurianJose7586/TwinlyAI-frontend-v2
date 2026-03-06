@@ -4,6 +4,8 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { CustomCursor } from "@/components/ui/custom-cursor";
 import { AuthProvider } from "@/context/AuthContext";
+import { LoadingProvider } from "@/context/LoadingContext";
+import { ColdStartLoader } from "@/components/ui/cold-start-loader";
 import { QueryProvider } from "@/providers/query-provider";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -38,8 +40,11 @@ export default function RootLayout({
         >
           <QueryProvider>
             <AuthProvider>
-              <CustomCursor />
-              {children}
+              <LoadingProvider>
+                <CustomCursor />
+                <ColdStartLoader />
+                {children}
+              </LoadingProvider>
             </AuthProvider>
           </QueryProvider>
         </ThemeProvider>
